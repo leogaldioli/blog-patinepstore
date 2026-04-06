@@ -106,13 +106,34 @@ export async function generatePost(
     const rawText =
       message.content[0].type === "text" ? message.content[0].text : "";
 
-    // Extrai JSON da resposta
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("Resposta não contém JSON válido");
+    // Extrai JSON da resposta — tenta bloco de código primeiro, depois busca genérica
+    let jsonStr: string | null = null;
+    const codeBlockMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (codeBlockMatch) {
+      jsonStr = codeBlockMatch[1].trim();
+    } else {
+      const braceMatch = rawText.match(/\{[\s\S]*\}/);
+      if (braceMatch) jsonStr = braceMatch[0];
     }
 
-    const generated: GeneratedPost = JSON.parse(jsonMatch[0]);
+    if (!jsonStr) throw new Error("Resposta não contém JSON válido");
+
+    // Sanitiza caracteres de controle que quebram JSON.parse
+    jsonStr = jsonStr.replace(/[\u0000-\u001F\u007F]/g, (c) => {
+      const escapes: Record<string, string> = {
+        "\n": "\\n", "\r": "\\r", "\t": "\\t",
+        "\b": "\\b", "\f": "\\f",
+      };
+      return escapes[c] ?? "";
+    });
+
+    let generated: GeneratedPost;
+    try {
+      generated = JSON.parse(jsonStr);
+    } catch {
+      // Última tentativa: extrai campos individualmente se o JSON estiver corrompido
+      throw new Error(`JSON inválido após sanitização: ${jsonStr.slice(0, 200)}`);
+    }
 
     const slug = slugify(generated.title);
 
