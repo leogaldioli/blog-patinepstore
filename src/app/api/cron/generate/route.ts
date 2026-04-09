@@ -27,22 +27,25 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ message: "Nenhum tópico pendente", generated: 0 });
   }
 
-  const results = await Promise.allSettled(topics.map((t) => generatePost(t)));
-
-  const summary = results.map((r, i) => ({
-    topic: topics[i].keyword,
-    ...(r.status === "fulfilled"
-      ? r.value
-      : { success: false, error: String(r.reason) }),
-  }));
+  // Geração sequencial com delay para respeitar rate limit de 10k tokens/min do Haiku
+  const summary: { topic: string; success: boolean; slug?: string; error?: string; warning?: string }[] = [];
+  for (const topic of topics) {
+    const result = await generatePost(topic);
+    summary.push({ topic: topic.keyword, ...result });
+    if (summary.length < topics.length) {
+      await new Promise((r) => setTimeout(r, 8000)); // 8s entre posts
+    }
+  }
 
   const succeeded = summary.filter((s) => s.success).length;
+  const drafts = summary.filter((s) => s.success && s.warning).length;
   const failed = summary.filter((s) => !s.success).length;
 
-  console.log(`[cron/generate] ${succeeded} gerados, ${failed} erros`);
+  console.log(`[cron/generate] ${succeeded} gerados (${drafts} para revisão), ${failed} erros`);
 
   return NextResponse.json({
     generated: succeeded,
+    drafts_for_review: drafts,
     failed,
     results: summary,
   });

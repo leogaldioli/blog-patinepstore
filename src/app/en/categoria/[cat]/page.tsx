@@ -1,4 +1,4 @@
-import { supabase, POSTS_PER_PAGE, CATEGORY_LABELS, BlogPost } from "@/lib/supabase";
+import { supabase, POSTS_PER_PAGE, CATEGORY_LABELS_EN, BlogPost } from "@/lib/supabase";
 import PostCard from "@/components/PostCard";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -13,7 +13,7 @@ async function getPosts(category: string): Promise<BlogPost[]> {
     .from("blog_posts")
     .select("*")
     .eq("status", "published")
-    .eq("lang", "pt")
+    .eq("lang", "en")
     .eq("category", category)
     .order("published_at", { ascending: false })
     .limit(POSTS_PER_PAGE);
@@ -22,17 +22,18 @@ async function getPosts(category: string): Promise<BlogPost[]> {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { cat } = await params;
-  const label = CATEGORY_LABELS[cat];
-  if (!label) return { title: "Categoria não encontrada" };
+  const label = CATEGORY_LABELS_EN[cat];
+  if (!label) return { title: "Category not found" };
   return {
-    title: `${label} — Artigos sobre patinetes e scooters elétricos`,
-    description: `Artigos sobre ${label.toLowerCase()} de patinetes elétricos, scooters e micromobilidade da Patinep Store.`,
+    title: `${label} — Electric Scooter Articles | Patinep Store`,
+    description: `Articles about ${label.toLowerCase()} for electric scooters, e-bikes and micro-mobility from Patinep Store.`,
+    openGraph: { locale: "en_US" },
   };
 }
 
-export default async function CategoryPage({ params }: Props) {
+export default async function EnCategoryPage({ params }: Props) {
   const { cat } = await params;
-  const label = CATEGORY_LABELS[cat];
+  const label = CATEGORY_LABELS_EN[cat];
   if (!label) notFound();
 
   const posts = await getPosts(cat);
@@ -41,7 +42,7 @@ export default async function CategoryPage({ params }: Props) {
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 16px 48px" }}>
       <div style={{ marginBottom: 32 }}>
         <Link
-          href="/"
+          href="/en"
           style={{ fontSize: 13, fontWeight: 600, color: "var(--cinza-texto)", textDecoration: "none" }}
         >
           ← Blog
@@ -59,14 +60,14 @@ export default async function CategoryPage({ params }: Props) {
           {label}
         </h1>
         <p style={{ fontSize: 14, color: "var(--cinza-texto)", fontWeight: 500 }}>
-          {posts.length} {posts.length === 1 ? "artigo" : "artigos"} publicados
+          {posts.length} {posts.length === 1 ? "article" : "articles"} published
         </p>
       </div>
 
       {posts.length === 0 ? (
         <div style={{ textAlign: "center", padding: "64px 0", color: "var(--cinza-texto)" }}>
-          <p style={{ fontSize: 15, fontWeight: 600 }}>Ainda não há artigos nesta categoria.</p>
-          <p style={{ fontSize: 13 }}>Volte em breve!</p>
+          <p style={{ fontSize: 15, fontWeight: 600 }}>No articles in this category yet.</p>
+          <p style={{ fontSize: 13 }}>Check back soon!</p>
         </div>
       ) : (
         <div
@@ -77,7 +78,7 @@ export default async function CategoryPage({ params }: Props) {
           }}
         >
           {posts.map((post) => (
-            <PostCard key={post.id} post={post} />
+            <PostCard key={post.id} post={post} lang="en" />
           ))}
         </div>
       )}

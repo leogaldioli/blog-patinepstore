@@ -1,15 +1,26 @@
-import { supabase, POSTS_PER_PAGE, CATEGORY_LABELS, BlogPost } from "@/lib/supabase";
+import { supabase, POSTS_PER_PAGE, CATEGORY_LABELS_EN, BlogPost } from "@/lib/supabase";
 import PostCard from "@/components/PostCard";
 import Link from "next/link";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Electric Scooter Blog — Patinep Store",
+  description:
+    "Guides, comparisons, maintenance and everything about electric scooters and micro-mobility. Experts in Maringá, Brazil.",
+  openGraph: {
+    locale: "en_US",
+    type: "website",
+  },
+};
 
 async function getPosts(): Promise<BlogPost[]> {
   const { data } = await supabase
     .from("blog_posts")
     .select("*")
     .eq("status", "published")
-    .eq("lang", "pt")
+    .eq("lang", "en")
     .order("published_at", { ascending: false })
     .limit(POSTS_PER_PAGE);
   return (data as BlogPost[]) || [];
@@ -20,11 +31,11 @@ async function getPostCount(): Promise<number> {
     .from("blog_posts")
     .select("*", { count: "exact", head: true })
     .eq("status", "published")
-    .eq("lang", "pt");
+    .eq("lang", "en");
   return count || 0;
 }
 
-export default async function HomePage() {
+export default async function EnHomePage() {
   const [posts, total] = await Promise.all([getPosts(), getPostCount()]);
 
   return (
@@ -41,21 +52,21 @@ export default async function HomePage() {
             marginBottom: 10,
           }}
         >
-          Tudo sobre patinetes e scooters elétricos
+          Everything about electric scooters and e-bikes
         </h1>
         <p style={{ fontSize: 15, fontWeight: 500, color: "var(--cinza-texto)", marginBottom: 0 }}>
-          Guias, comparativos, manutenção e regulamentação.{" "}
-          {total > 0 && `${total} artigos publicados.`}
+          Buying guides, comparisons, maintenance and regulations.{" "}
+          {total > 0 && `${total} articles published.`}
         </p>
       </div>
 
-      {/* Categorias */}
+      {/* Categories */}
       <div style={{ marginBottom: 36 }}>
         <div className="flex flex-wrap gap-2">
-          {Object.entries(CATEGORY_LABELS).map(([slug, label]) => (
+          {Object.entries(CATEGORY_LABELS_EN).map(([slug, label]) => (
             <Link
               key={slug}
-              href={`/categoria/${slug}`}
+              href={`/en/categoria/${slug}`}
               style={{
                 fontSize: 12,
                 fontWeight: 700,
@@ -73,7 +84,7 @@ export default async function HomePage() {
         </div>
       </div>
 
-      {/* Grid de posts */}
+      {/* Posts grid */}
       {posts.length === 0 ? (
         <div
           style={{
@@ -83,9 +94,9 @@ export default async function HomePage() {
           }}
         >
           <p style={{ fontSize: 15, fontWeight: 600 }}>
-            Os primeiros artigos estão sendo gerados.
+            English articles are being generated.
           </p>
-          <p style={{ fontSize: 13 }}>Volte em breve!</p>
+          <p style={{ fontSize: 13 }}>Check back soon!</p>
         </div>
       ) : (
         <div
@@ -96,7 +107,7 @@ export default async function HomePage() {
           }}
         >
           {posts.map((post) => (
-            <PostCard key={post.id} post={post} />
+            <PostCard key={post.id} post={post} lang="en" />
           ))}
         </div>
       )}

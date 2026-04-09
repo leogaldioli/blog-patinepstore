@@ -1,20 +1,26 @@
+"use client";
 import Link from "next/link";
-import { BlogPost, CATEGORY_LABELS } from "@/lib/supabase";
+import { BlogPost, CATEGORY_LABELS, CATEGORY_LABELS_EN } from "@/lib/supabase";
 
 type Props = {
   post: BlogPost;
+  lang?: "pt" | "en";
 };
 
-export default function PostCard({ post }: Props) {
-  const categoryLabel = CATEGORY_LABELS[post.category] || post.category;
-  const date = new Date(post.published_at).toLocaleDateString("pt-BR", {
+export default function PostCard({ post, lang = "pt" }: Props) {
+  const labels = lang === "en" ? CATEGORY_LABELS_EN : CATEGORY_LABELS;
+  const categoryLabel = labels[post.category] || post.category;
+  const locale = lang === "en" ? "en-US" : "pt-BR";
+  const date = new Date(post.published_at).toLocaleDateString(locale, {
     day: "2-digit",
     month: "short",
     year: "numeric",
   });
+  const readLabel = lang === "en" ? "min read" : "min de leitura";
+  const href = lang === "en" ? `/en/${post.slug}` : `/${post.slug}`;
 
   return (
-    <Link href={`/${post.slug}`} style={{ textDecoration: "none" }}>
+    <Link href={href} style={{ textDecoration: "none" }}>
       <article
         style={{
           background: "#ffffff",
@@ -134,7 +140,7 @@ export default function PostCard({ post }: Props) {
                 color: "var(--cinza-texto)",
               }}
             >
-              {post.reading_time_min} min de leitura
+              {post.reading_time_min} {readLabel}
             </span>
           </div>
         </div>

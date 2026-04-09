@@ -29,6 +29,8 @@ export type BlogPost = {
   published_at: string;
   view_count: number;
   created_at: string;
+  lang: "pt" | "en";
+  original_slug: string | null;
 };
 
 export type BlogTopic = {
@@ -52,6 +54,19 @@ export const CATEGORY_LABELS: Record<string, string> = {
   delivery: "Delivery",
   faq: "Perguntas Frequentes",
   tecnico: "Técnico",
+  lifestyle: "Lifestyle",
+};
+
+export const CATEGORY_LABELS_EN: Record<string, string> = {
+  "guia-de-compra": "Buying Guide",
+  manutencao: "Maintenance",
+  regulamentacao: "Regulations",
+  economia: "Economy",
+  seguranca: "Safety",
+  hiperlocal: "Maringá & Region",
+  delivery: "Delivery",
+  faq: "FAQ",
+  tecnico: "Technical",
   lifestyle: "Lifestyle",
 };
 

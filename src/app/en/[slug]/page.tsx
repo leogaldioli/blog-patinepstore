@@ -1,4 +1,4 @@
-import { supabase, BlogPost, CATEGORY_LABELS } from "@/lib/supabase";
+import { supabase, BlogPost, CATEGORY_LABELS_EN } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -15,27 +15,16 @@ async function getPost(slug: string): Promise<BlogPost | null> {
     .from("blog_posts")
     .select("*")
     .eq("slug", slug)
-    .eq("lang", "pt")
+    .eq("lang", "en")
     .eq("status", "published")
     .maybeSingle();
   return (data as BlogPost) || null;
 }
 
-async function getEnVersion(ptSlug: string): Promise<string | null> {
-  const { data } = await supabase
-    .from("blog_posts")
-    .select("slug")
-    .eq("original_slug", ptSlug)
-    .eq("lang", "en")
-    .eq("status", "published")
-    .maybeSingle();
-  return data?.slug || null;
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const post = await getPost(slug);
-  if (!post) return { title: "Post não encontrado" };
+  if (!post) return { title: "Post not found" };
   return {
     title: post.title,
     description: post.meta_description,
@@ -44,21 +33,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: post.meta_description,
       type: "article",
       publishedTime: post.published_at,
+      locale: "en_US",
     },
     alternates: {
-      canonical: `${BASE_URL}/${slug}`,
-      languages: { "pt-BR": `${BASE_URL}/${slug}` },
+      canonical: `${BASE_URL}/en/${slug}`,
+      languages: {
+        "en": `${BASE_URL}/en/${slug}`,
+        ...(post.original_slug ? { "pt-BR": `${BASE_URL}/${post.original_slug}` } : {}),
+      },
     },
   };
 }
 
-export default async function PostPage({ params }: Props) {
+export default async function EnPostPage({ params }: Props) {
   const { slug } = await params;
-  const [post, enSlug] = await Promise.all([getPost(slug), getEnVersion(slug)]);
+  const post = await getPost(slug);
   if (!post) notFound();
 
-  const categoryLabel = CATEGORY_LABELS[post.category] || post.category;
-  const date = new Date(post.published_at).toLocaleDateString("pt-BR", {
+  const categoryLabel = CATEGORY_LABELS_EN[post.category] || post.category;
+  const date = new Date(post.published_at).toLocaleDateString("en-US", {
     day: "2-digit",
     month: "long",
     year: "numeric",
@@ -76,6 +69,7 @@ export default async function PostPage({ params }: Props) {
       url: "https://patinepstore.com.br",
     },
     datePublished: post.published_at,
+    inLanguage: "en",
   };
 
   const faqSchema = post.faq_json?.length
@@ -104,7 +98,7 @@ export default async function PostPage({ params }: Props) {
       )}
 
       <article>
-        {/* Hero do post */}
+        {/* Hero */}
         <div
           style={{
             background: "linear-gradient(135deg, #282828, #2a2a3a)",
@@ -129,7 +123,7 @@ export default async function PostPage({ params }: Props) {
           <div style={{ maxWidth: 760, margin: "0 auto" }}>
             <div className="flex items-center gap-3" style={{ marginBottom: 14, flexWrap: "wrap" }}>
               <Link
-                href={`/categoria/${post.category}`}
+                href={`/en/categoria/${post.category}`}
                 style={{
                   display: "inline-block",
                   fontSize: 11,
@@ -144,9 +138,9 @@ export default async function PostPage({ params }: Props) {
               >
                 {categoryLabel}
               </Link>
-              {enSlug && (
+              {post.original_slug && (
                 <Link
-                  href={`/en/${enSlug}`}
+                  href={`/${post.original_slug}`}
                   style={{
                     display: "inline-block",
                     fontSize: 11,
@@ -159,7 +153,7 @@ export default async function PostPage({ params }: Props) {
                     letterSpacing: "0.3px",
                   }}
                 >
-                  Read in English →
+                  Ler em Português →
                 </Link>
               )}
             </div>
@@ -185,16 +179,16 @@ export default async function PostPage({ params }: Props) {
               </span>
               <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
               <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>
-                {post.reading_time_min} min de leitura
+                {post.reading_time_min} min read
               </span>
             </div>
           </div>
         </div>
 
-        {/* Barra amarela */}
+        {/* Yellow bar */}
         <div style={{ height: 4, background: "linear-gradient(90deg, #FCC425, #E0AB00)" }} />
 
-        {/* Conteúdo */}
+        {/* Content */}
         <div style={{ maxWidth: 760, margin: "0 auto", padding: "32px 16px" }}>
           <div
             className="post-content"
@@ -213,7 +207,7 @@ export default async function PostPage({ params }: Props) {
                   letterSpacing: "-0.3px",
                 }}
               >
-                Perguntas frequentes
+                Frequently Asked Questions
               </h2>
               <div className="flex flex-col" style={{ gap: 12 }}>
                 {post.faq_json.map((item, i) => (
@@ -286,10 +280,10 @@ export default async function PostPage({ params }: Props) {
             </div>
           )}
 
-          {/* Voltar */}
+          {/* Back */}
           <div style={{ marginTop: 40, paddingTop: 24, borderTop: "1px solid var(--cinza-medio)" }}>
             <Link
-              href="/"
+              href="/en"
               style={{
                 fontSize: 13,
                 fontWeight: 600,
@@ -297,7 +291,7 @@ export default async function PostPage({ params }: Props) {
                 textDecoration: "none",
               }}
             >
-              ← Voltar para o blog
+              ← Back to blog
             </Link>
           </div>
         </div>
