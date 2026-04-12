@@ -1,5 +1,5 @@
 import { supabase, POSTS_PER_PAGE, CATEGORY_LABELS, BlogPost } from "@/lib/supabase";
-import PostCard from "@/components/PostCard";
+import PostsGrid from "@/components/PostsGrid";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -73,33 +73,8 @@ export default async function HomePage() {
         </div>
       </div>
 
-      {/* Grid de posts */}
-      {posts.length === 0 ? (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "64px 0",
-            color: "var(--cinza-texto)",
-          }}
-        >
-          <p style={{ fontSize: 15, fontWeight: 600 }}>
-            Os primeiros artigos estão sendo gerados.
-          </p>
-          <p style={{ fontSize: 13 }}>Volte em breve!</p>
-        </div>
-      ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-            gap: 20,
-          }}
-        >
-          {posts.map((post) => (
-            <PostCard key={post.id} post={post} />
-          ))}
-        </div>
-      )}
+      {/* Grid de posts com infinite scroll */}
+      <PostsGrid initialPosts={posts} lang="pt" total={total} />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { supabase, POSTS_PER_PAGE, CATEGORY_LABELS_EN, BlogPost } from "@/lib/supabase";
-import PostCard from "@/components/PostCard";
+import PostsGrid from "@/components/PostsGrid";
 import Link from "next/link";
 import type { Metadata } from "next";
 
@@ -84,33 +84,8 @@ export default async function EnHomePage() {
         </div>
       </div>
 
-      {/* Posts grid */}
-      {posts.length === 0 ? (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "64px 0",
-            color: "var(--cinza-texto)",
-          }}
-        >
-          <p style={{ fontSize: 15, fontWeight: 600 }}>
-            English articles are being generated.
-          </p>
-          <p style={{ fontSize: 13 }}>Check back soon!</p>
-        </div>
-      ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-            gap: 20,
-          }}
-        >
-          {posts.map((post) => (
-            <PostCard key={post.id} post={post} lang="en" />
-          ))}
-        </div>
-      )}
+      {/* Posts grid with infinite scroll */}
+      <PostsGrid initialPosts={posts} lang="en" total={total} />
     </div>
   );
 }
