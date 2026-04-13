@@ -7,7 +7,6 @@ VPS_HOST="46.202.147.81"
 VPS_USER="root"
 DEPLOY_PATH="/opt/blog-patinepstore"
 APP_NAME="blog-patinepstore"
-
 SKIP_TESTS=false
 for arg in "$@"; do
   case $arg in
@@ -35,11 +34,11 @@ SIZE=$(du -h "$TMPFILE" | cut -f1)
 echo "Pacote: $SIZE"
 
 echo "Enviando para VPS..."
-scp "$TMPFILE" "${VPS_USER}@${VPS_HOST}:${DEPLOY_PATH}/_build.tar.gz"
+scp -o StrictHostKeyChecking=no "$TMPFILE" "${VPS_USER}@${VPS_HOST}:${DEPLOY_PATH}/_build.tar.gz"
 rm "$TMPFILE"
 
 echo "Buildando e deployando na VPS..."
-ssh "${VPS_USER}@${VPS_HOST}" bash -s <<'REMOTE'
+ssh -o StrictHostKeyChecking=no "${VPS_USER}@${VPS_HOST}" bash -s <<'REMOTE'
 set -euo pipefail
 cd /opt/blog-patinepstore
 
@@ -61,6 +60,11 @@ docker build \
 
 cd /opt/blog-patinepstore
 docker compose -f docker-compose.prod.yml up -d --force-recreate
+
+# Conecta à rede Swarm overlay do Traefik (necessário pois docker-compose não alcança redes overlay)
+sleep 2
+docker network disconnect easypanel blog-patinepstore-app 2>/dev/null || true
+docker network connect --alias blog-patinepstore easypanel blog-patinepstore-app
 
 rm -rf _build
 docker image prune -f
