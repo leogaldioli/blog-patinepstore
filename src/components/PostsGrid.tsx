@@ -20,13 +20,19 @@ export default function PostsGrid({ initialPosts, lang, total }: Props) {
     if (loading || !hasMore) return;
     setLoading(true);
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("blog_posts")
       .select("*")
       .eq("status", "published")
       .eq("lang", lang)
       .order("published_at", { ascending: false })
       .range(offset, offset + POSTS_PER_PAGE - 1);
+
+    if (error) {
+      console.error("[PostsGrid] loadMore error:", error.message);
+      setLoading(false);
+      return; // don't mark hasMore=false on errors, allow retry
+    }
 
     const newPosts = (data as BlogPost[]) || [];
 
