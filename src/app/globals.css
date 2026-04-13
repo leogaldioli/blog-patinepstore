@@ -97,3 +97,61 @@ body {
   border-radius: 0 8px 8px 0;
   font-style: italic;
 }
+
+/* ── CTA box — força identidade visual, sobrescreve estilos inline da IA ── */
+.cta-box,
+.cta-box div,
+.cta-box section,
+.cta-box article {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.cta-box h2,
+.cta-box h3,
+.cta-box h4 {
+  color: #ffffff !important;
+  font-size: 1.125rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.3px !important;
+  margin-bottom: 0.75rem !important;
+  line-height: 1.25 !important;
+}
+
+.cta-box p {
+  color: rgba(255, 255, 255, 0.8) !important;
+  font-size: 0.9375rem !important;
+  font-weight: 500 !important;
+  line-height: 1.65 !important;
+  margin-bottom: 0.75rem !important;
+}
+
+.cta-box strong {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+/* Botão do CTA — amarelo da marca */
+.cta-box a {
+  display: inline-block !important;
+  background: #fcc425 !important;
+  color: #282828 !important;
+  font-weight: 700 !important;
+  font-size: 0.9375rem !important;
+  padding: 12px 24px !important;
+  border-radius: 10px !important;
+  text-decoration: none !important;
+  border: none !important;
+  margin-top: 1rem !important;
+  transition: background 0.15s !important;
+}
+
+.cta-box a:hover {
+  background: #e0ab00 !important;
+  color: #282828 !important;
+}

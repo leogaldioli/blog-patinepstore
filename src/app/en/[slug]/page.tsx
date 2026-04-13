@@ -273,8 +273,7 @@ export default async function EnPostPage({ params }: Props) {
                 ⚡
               </span>
               <div
-                className="post-content"
-                style={{ color: "#ffffff" }}
+                className="cta-box"
                 dangerouslySetInnerHTML={{ __html: post.cta_html }}
               />
             </div>

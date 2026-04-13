@@ -100,7 +100,7 @@ RETORNE APENAS JSON VÁLIDO no formato:
   "meta_description": "descrição de 150-160 caracteres, atraente",
   "content_html": "HTML completo do post (use h2, h3, p, ul, li, strong, a)",
   "faq": [{"question": "pergunta exata como alguém digitaria no Google", "answer": "resposta direta em 2-3 frases"}],
-  "cta_html": "HTML do CTA contextual com link",
+  "cta_html": "HTML do CTA: apenas h3, p, strong e <a href='...'>Texto do botão</a>. SEM div, SEM style, SEM class, SEM qualquer atributo de estilo.",
   "lp_link": "${lpLink || "null"}",
   "reading_time_min": número_inteiro
 }`;
@@ -141,7 +141,7 @@ OUTPUT FORMAT (valid JSON only):
   "meta_description": "150-160 char description in English",
   "content_html": "Full translated HTML",
   "faq": [{"question": "question as typed on Google in English", "answer": "direct answer in 2-3 sentences"}],
-  "cta_html": "Translated CTA HTML (keep links)",
+  "cta_html": "Translated CTA HTML: only h3, p, strong and <a href='...'>Button text</a>. NO div, NO style, NO class attributes.",
   "lp_link": ${JSON.stringify(ptPost.lp_link)},
   "reading_time_min": same_integer_as_original
 }`;
