@@ -2,27 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CATEGORY_LABELS, CATEGORY_LABELS_EN } from "@/lib/supabase";
+import { useEffect, useState } from "react";
+import { supabase, CATEGORY_LABELS, CATEGORY_LABELS_EN } from "@/lib/supabase";
 
 const destaque = ["guia-de-compra", "manutencao", "regulamentacao", "delivery"];
 
-function getLangSwitcherHref(pathname: string): { href: string; label: string } {
-  const isEn = pathname.startsWith("/en");
+function isPostPage(pathname: string): boolean {
+  if (pathname === "/" || pathname === "/en") return false;
+  if (pathname.startsWith("/categoria/")) return false;
+  if (pathname.startsWith("/en/categoria/")) return false;
+  return true;
+}
 
-  if (isEn) {
-    // EN → PT
-    if (pathname === "/en") return { href: "/", label: "PT" };
-    const rest = pathname.slice(3); // remove "/en"
-    if (rest.startsWith("/categoria/")) return { href: rest, label: "PT" };
-    // post page: go to PT home
-    return { href: "/", label: "PT" };
-  } else {
-    // PT → EN
-    if (pathname === "/") return { href: "/en", label: "EN" };
-    if (pathname.startsWith("/categoria/")) return { href: "/en" + pathname, label: "EN" };
-    // post page: go to EN home
-    return { href: "/en", label: "EN" };
-  }
+function getSlugFromPath(pathname: string, isEn: boolean): string {
+  if (isEn) return pathname.slice("/en/".length); // "/en/some-slug" → "some-slug"
+  return pathname.slice(1); // "/some-slug" → "some-slug"
 }
 
 export default function Header() {
@@ -31,7 +25,68 @@ export default function Header() {
   const labels = isEn ? CATEGORY_LABELS_EN : CATEGORY_LABELS;
   const categoryBase = isEn ? "/en/categoria" : "/categoria";
   const homeHref = isEn ? "/en" : "/";
-  const { href: langHref, label: langLabel } = getLangSwitcherHref(pathname);
+
+  const onPost = isPostPage(pathname);
+  const currentSlug = onPost ? getSlugFromPath(pathname, isEn) : null;
+
+  // For post pages: look up the translated slug from Supabase
+  const [translatedPostHref, setTranslatedPostHref] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!onPost || !currentSlug) {
+      setTranslatedPostHref(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function fetchTranslated() {
+      if (isEn) {
+        // EN post → find original PT slug
+        const { data } = await supabase
+          .from("blog_posts")
+          .select("original_slug")
+          .eq("slug", currentSlug!)
+          .eq("lang", "en")
+          .maybeSingle();
+        if (!cancelled && data?.original_slug) {
+          setTranslatedPostHref(`/${data.original_slug}`);
+        }
+      } else {
+        // PT post → find EN slug
+        const { data } = await supabase
+          .from("blog_posts")
+          .select("slug")
+          .eq("original_slug", currentSlug!)
+          .eq("lang", "en")
+          .maybeSingle();
+        if (!cancelled && data?.slug) {
+          setTranslatedPostHref(`/en/${data.slug}`);
+        }
+      }
+    }
+
+    fetchTranslated();
+    return () => { cancelled = true; };
+  }, [currentSlug, isEn, onPost]);
+
+  // Build the switcher href
+  function getLangHref(): string {
+    if (isEn) {
+      if (pathname === "/en") return "/";
+      if (pathname.startsWith("/en/categoria/")) return pathname.replace("/en/categoria/", "/categoria/");
+      if (onPost && translatedPostHref) return translatedPostHref;
+      return "/"; // fallback while loading
+    } else {
+      if (pathname === "/") return "/en";
+      if (pathname.startsWith("/categoria/")) return `/en${pathname}`;
+      if (onPost && translatedPostHref) return translatedPostHref;
+      return "/en"; // fallback while loading
+    }
+  }
+
+  const langLabel = isEn ? "PT" : "EN";
+  const langHref = getLangHref();
 
   return (
     <header
@@ -91,6 +146,9 @@ export default function Header() {
               borderRadius: 8,
               textDecoration: "none",
               letterSpacing: "0.5px",
+              // Dim while waiting for translated slug on post pages
+              opacity: onPost && !translatedPostHref ? 0.4 : 1,
+              transition: "opacity 0.2s",
             }}
           >
             {langLabel}
