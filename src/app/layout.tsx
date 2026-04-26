@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { GoogleTagManager } from "@next/third-parties/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -31,6 +32,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className="h-full">
+      <GoogleTagManager gtmId="GTM-KV8ZKF3X" />
       <body
         className="min-h-full flex flex-col"
         style={{ backgroundColor: "var(--creme)" }}
