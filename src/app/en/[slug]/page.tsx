@@ -2,11 +2,17 @@ import { supabase, BlogPost, CATEGORY_LABELS_EN } from "@/lib/supabase";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
+import {
+  BASE_URL,
+  articleSchema,
+  faqSchema,
+  breadcrumbSchema,
+  postLanguagesAlternates,
+  stripLeadingH1,
+  extractTldr,
+} from "@/lib/seo";
 
 export const revalidate = 3600;
-
-const BASE_URL =
-  process.env.NEXT_PUBLIC_BASE_URL || "https://blog.patinepstore.com.br";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -21,10 +27,29 @@ async function getPost(slug: string): Promise<BlogPost | null> {
   return (data as BlogPost) || null;
 }
 
+async function getRelatedPosts(
+  category: string,
+  excludeSlug: string
+): Promise<BlogPost[]> {
+  const { data } = await supabase
+    .from("blog_posts")
+    .select("*")
+    .eq("status", "published")
+    .eq("lang", "en")
+    .eq("category", category)
+    .neq("slug", excludeSlug)
+    .order("published_at", { ascending: false })
+    .limit(3);
+  return (data as BlogPost[]) || [];
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const post = await getPost(slug);
-  if (!post) return { title: "Post not found" };
+  if (!post) return { title: "Post not found", robots: { index: false } };
+
+  const url = `${BASE_URL}/en/${slug}`;
+  const ptSlug = post.original_slug;
   return {
     title: post.title,
     description: post.meta_description,
@@ -32,15 +57,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: post.title,
       description: post.meta_description,
       type: "article",
+      url,
       publishedTime: post.published_at,
+      modifiedTime: post.published_at,
       locale: "en_US",
+      authors: ["Patinep Store"],
+      section: CATEGORY_LABELS_EN[post.category] || post.category,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description: post.meta_description,
     },
     alternates: {
-      canonical: `${BASE_URL}/en/${slug}`,
-      languages: {
-        "en": `${BASE_URL}/en/${slug}`,
-        ...(post.original_slug ? { "pt-BR": `${BASE_URL}/${post.original_slug}` } : {}),
-      },
+      canonical: url,
+      languages: postLanguagesAlternates(ptSlug || slug, slug, true),
     },
   };
 }
@@ -50,6 +81,8 @@ export default async function EnPostPage({ params }: Props) {
   const post = await getPost(slug);
   if (!post) notFound();
 
+  const related = await getRelatedPosts(post.category, slug);
+
   const categoryLabel = CATEGORY_LABELS_EN[post.category] || post.category;
   const date = new Date(post.published_at).toLocaleDateString("en-US", {
     day: "2-digit",
@@ -57,45 +90,31 @@ export default async function EnPostPage({ params }: Props) {
     year: "numeric",
   });
 
-  const articleSchema = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    headline: post.title,
-    description: post.meta_description,
-    author: { "@type": "Organization", name: "Patinep Store" },
-    publisher: {
-      "@type": "Organization",
-      name: "Patinep Store",
-      url: "https://patinepstore.com.br",
-    },
-    datePublished: post.published_at,
-    inLanguage: "en",
-  };
+  const tldr = extractTldr(post.content_html);
+  const cleanedContent = stripLeadingH1(post.content_html);
 
-  const faqSchema = post.faq_json?.length
-    ? {
-        "@context": "https://schema.org",
-        "@type": "FAQPage",
-        mainEntity: post.faq_json.map((f) => ({
-          "@type": "Question",
-          name: f.question,
-          acceptedAnswer: { "@type": "Answer", text: f.answer },
-        })),
-      }
-    : null;
+  const schemas = [
+    articleSchema({ post }),
+    faqSchema(post.faq_json),
+    breadcrumbSchema([
+      { name: "Blog", url: `${BASE_URL}/en` },
+      {
+        name: categoryLabel,
+        url: `${BASE_URL}/en/categoria/${post.category}`,
+      },
+      { name: post.title, url: `${BASE_URL}/en/${slug}` },
+    ]),
+  ].filter(Boolean);
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
-      />
-      {faqSchema && (
+      {schemas.map((s, i) => (
         <script
+          key={i}
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(s) }}
         />
-      )}
+      ))}
 
       <article>
         {/* Hero */}
@@ -121,26 +140,43 @@ export default async function EnPostPage({ params }: Props) {
             ⚡
           </span>
           <div style={{ maxWidth: 760, margin: "0 auto" }}>
-            <div className="flex items-center gap-3" style={{ marginBottom: 14, flexWrap: "wrap" }}>
+            {/* Breadcrumbs */}
+            <nav
+              aria-label="Breadcrumb"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                marginBottom: 14,
+                fontSize: 11,
+                color: "rgba(255,255,255,0.5)",
+                fontWeight: 600,
+                flexWrap: "wrap",
+              }}
+            >
+              <Link
+                href="/en"
+                style={{ color: "rgba(255,255,255,0.5)", textDecoration: "none" }}
+              >
+                Blog
+              </Link>
+              <span style={{ color: "rgba(255,255,255,0.25)" }}>/</span>
               <Link
                 href={`/en/categoria/${post.category}`}
-                style={{
-                  display: "inline-block",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: "#FCC425",
-                  background: "rgba(252,196,37,0.12)",
-                  padding: "3px 12px",
-                  borderRadius: 20,
-                  textDecoration: "none",
-                  letterSpacing: "0.3px",
-                }}
+                style={{ color: "#FCC425", textDecoration: "none" }}
               >
                 {categoryLabel}
               </Link>
+            </nav>
+
+            <div
+              className="flex items-center gap-3"
+              style={{ marginBottom: 14, flexWrap: "wrap" }}
+            >
               {post.original_slug && (
                 <Link
                   href={`/${post.original_slug}`}
+                  hrefLang="pt-BR"
                   style={{
                     display: "inline-block",
                     fontSize: 11,
@@ -169,16 +205,38 @@ export default async function EnPostPage({ params }: Props) {
             >
               {post.title}
             </h1>
-            <div className="flex items-center gap-3" style={{ flexWrap: "wrap" }}>
-              <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>
+            <div
+              className="flex items-center gap-3"
+              style={{ flexWrap: "wrap" }}
+            >
+              <span
+                style={{
+                  fontSize: 13,
+                  color: "rgba(255,255,255,0.5)",
+                  fontWeight: 500,
+                }}
+              >
                 Patinep Store
               </span>
               <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
-              <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>
+              <time
+                dateTime={post.published_at}
+                style={{
+                  fontSize: 13,
+                  color: "rgba(255,255,255,0.5)",
+                  fontWeight: 500,
+                }}
+              >
                 {date}
-              </span>
+              </time>
               <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
-              <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>
+              <span
+                style={{
+                  fontSize: 13,
+                  color: "rgba(255,255,255,0.5)",
+                  fontWeight: 500,
+                }}
+              >
                 {post.reading_time_min} min read
               </span>
             </div>
@@ -186,13 +244,57 @@ export default async function EnPostPage({ params }: Props) {
         </div>
 
         {/* Yellow bar */}
-        <div style={{ height: 4, background: "linear-gradient(90deg, #FCC425, #E0AB00)" }} />
+        <div
+          style={{
+            height: 4,
+            background: "linear-gradient(90deg, #FCC425, #E0AB00)",
+          }}
+        />
 
         {/* Content */}
         <div style={{ maxWidth: 760, margin: "0 auto", padding: "32px 16px" }}>
+          {/* TL;DR */}
+          {tldr && (
+            <aside
+              aria-label="Summary"
+              style={{
+                background: "#ffffff",
+                borderLeft: "3px solid #FCC425",
+                borderRadius: 10,
+                padding: "14px 18px",
+                marginBottom: 28,
+                boxShadow: "var(--sombra-card)",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  color: "#FCC425",
+                  letterSpacing: "1.5px",
+                  textTransform: "uppercase",
+                  marginBottom: 6,
+                }}
+              >
+                Summary
+              </div>
+              <p
+                style={{
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: "var(--preto)",
+                  margin: 0,
+                  lineHeight: 1.55,
+                }}
+              >
+                {tldr}
+              </p>
+            </aside>
+          )}
+
           <div
             className="post-content"
-            dangerouslySetInnerHTML={{ __html: post.content_html }}
+            dangerouslySetInnerHTML={{ __html: cleanedContent }}
           />
 
           {/* FAQ */}
@@ -279,8 +381,92 @@ export default async function EnPostPage({ params }: Props) {
             </div>
           )}
 
+          {/* Related posts */}
+          {related.length > 0 && (
+            <section aria-label="Related articles" style={{ marginTop: 48 }}>
+              <h2
+                style={{
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: "var(--preto)",
+                  marginBottom: 20,
+                  letterSpacing: "-0.3px",
+                }}
+              >
+                Keep reading about {categoryLabel}
+              </h2>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+                  gap: 14,
+                }}
+              >
+                {related.map((r) => (
+                  <Link
+                    key={r.id}
+                    href={`/en/${r.slug}`}
+                    style={{
+                      display: "block",
+                      background: "#ffffff",
+                      borderRadius: 12,
+                      padding: "14px 16px",
+                      textDecoration: "none",
+                      boxShadow: "var(--sombra-card)",
+                      borderTop: "3px solid #FCC425",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: "#FCC425",
+                        letterSpacing: "1px",
+                        textTransform: "uppercase",
+                        marginBottom: 6,
+                      }}
+                    >
+                      {categoryLabel}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: "var(--preto)",
+                        lineHeight: 1.3,
+                        marginBottom: 6,
+                      }}
+                    >
+                      {r.title}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: "var(--cinza-texto)",
+                        lineHeight: 1.45,
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical" as const,
+                        overflow: "hidden",
+                      }}
+                    >
+                      {r.meta_description}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* Back */}
-          <div style={{ marginTop: 40, paddingTop: 24, borderTop: "1px solid var(--cinza-medio)" }}>
+          <div
+            style={{
+              marginTop: 40,
+              paddingTop: 24,
+              borderTop: "1px solid var(--cinza-medio)",
+            }}
+          >
             <Link
               href="/en"
               style={{

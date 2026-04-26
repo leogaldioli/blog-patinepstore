@@ -2,16 +2,29 @@ import { supabase, POSTS_PER_PAGE, CATEGORY_LABELS_EN, BlogPost } from "@/lib/su
 import PostsGrid from "@/components/PostsGrid";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { BASE_URL } from "@/lib/seo";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "Electric Scooter Blog — Patinep Store",
   description:
     "Guides, comparisons, maintenance and everything about electric scooters and micro-mobility. Experts in Maringá, Brazil.",
+  alternates: {
+    canonical: `${BASE_URL}/en`,
+    languages: {
+      en: `${BASE_URL}/en`,
+      "pt-BR": BASE_URL,
+      "x-default": BASE_URL,
+    },
+  },
   openGraph: {
-    locale: "en_US",
+    title: "Electric Scooter Blog — Patinep Store",
+    description:
+      "Guides, comparisons, maintenance and everything about electric scooters and micro-mobility.",
+    url: `${BASE_URL}/en`,
     type: "website",
+    locale: "en_US",
   },
 };
 

@@ -1,8 +1,32 @@
 import { supabase, POSTS_PER_PAGE, CATEGORY_LABELS, BlogPost } from "@/lib/supabase";
 import PostsGrid from "@/components/PostsGrid";
 import Link from "next/link";
+import type { Metadata } from "next";
+import { BASE_URL } from "@/lib/seo";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
+
+export const metadata: Metadata = {
+  title: "Blog Patinep Store — Patinetes e Scooters Elétricos",
+  description:
+    "Guias, comparativos, manutenção e regulamentação de patinetes elétricos, scooters e bicicletas elétricas. Especialistas em micromobilidade em Maringá-PR.",
+  alternates: {
+    canonical: BASE_URL,
+    languages: {
+      "pt-BR": BASE_URL,
+      en: `${BASE_URL}/en`,
+      "x-default": BASE_URL,
+    },
+  },
+  openGraph: {
+    title: "Blog Patinep Store — Patinetes e Scooters Elétricos",
+    description:
+      "Guias, comparativos, manutenção e regulamentação de patinetes elétricos, scooters e bicicletas elétricas.",
+    url: BASE_URL,
+    type: "website",
+    locale: "pt_BR",
+  },
+};
 
 async function getPosts(): Promise<BlogPost[]> {
   const { data } = await supabase

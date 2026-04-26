@@ -3,6 +3,11 @@ import { GoogleTagManager } from "@next/third-parties/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import {
+  BASE_URL,
+  organizationSchema,
+  websiteSchema,
+} from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: {
@@ -11,17 +16,53 @@ export const metadata: Metadata = {
   },
   description:
     "Guias, comparativos, manutenção e tudo sobre patinetes elétricos, scooters e bicicletas elétricas. Especialistas em micromobilidade em Maringá.",
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_BASE_URL || "https://blog.patinepstore.com.br"
-  ),
+  metadataBase: new URL(BASE_URL),
+  applicationName: "Patinep Store Blog",
+  authors: [{ name: "Patinep Store", url: "https://patinepstore.com.br" }],
+  keywords: [
+    "patinete elétrico",
+    "scooter elétrico",
+    "micromobilidade",
+    "patinete Maringá",
+    "patinete adulto",
+    "patinete infantil",
+    "regulamentação patinete",
+    "manutenção patinete",
+  ],
   openGraph: {
     siteName: "Patinep Store",
     locale: "pt_BR",
     type: "website",
+    url: BASE_URL,
+  },
+  twitter: {
+    card: "summary_large_image",
+    site: "@patinepstore",
   },
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+  alternates: {
+    canonical: BASE_URL,
+    languages: {
+      "pt-BR": BASE_URL,
+      "en": `${BASE_URL}/en`,
+      "x-default": BASE_URL,
+    },
+  },
+  verification: {
+    google: process.env.NEXT_PUBLIC_GSC_VERIFICATION,
+    other: {
+      "msvalidate.01": process.env.NEXT_PUBLIC_BING_VERIFICATION || "",
+    },
   },
 };
 
@@ -33,6 +74,20 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className="h-full">
       <GoogleTagManager gtmId="GTM-KV8ZKF3X" />
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(organizationSchema()),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(websiteSchema()),
+          }}
+        />
+      </head>
       <body
         className="min-h-full flex flex-col"
         style={{ backgroundColor: "var(--creme)" }}
