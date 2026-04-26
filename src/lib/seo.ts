@@ -68,7 +68,7 @@ export function articleSchema({ post }: ArticleSchemaInput) {
     url,
     mainEntityOfPage: { "@type": "WebPage", "@id": url },
     datePublished: post.published_at,
-    dateModified: post.published_at,
+    dateModified: post.updated_at || post.published_at,
     inLanguage: isEn ? "en" : "pt-BR",
     articleSection: labels[post.category] || post.category,
     author: {

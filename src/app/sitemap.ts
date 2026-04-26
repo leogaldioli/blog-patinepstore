@@ -9,7 +9,7 @@ export const revalidate = 3600;
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const { data: posts } = await supabase
     .from("blog_posts")
-    .select("slug, published_at, category, lang")
+    .select("slug, published_at, updated_at, category, lang")
     .eq("status", "published")
     .order("published_at", { ascending: false });
 
@@ -19,14 +19,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const ptPostUrls: MetadataRoute.Sitemap = ptPosts.map((post) => ({
     url: `${BASE_URL}/${post.slug}`,
-    lastModified: new Date(post.published_at),
+    lastModified: new Date(post.updated_at || post.published_at),
     changeFrequency: "monthly",
     priority: 0.7,
   }));
 
   const enPostUrls: MetadataRoute.Sitemap = enPosts.map((post) => ({
     url: `${BASE_URL}/en/${post.slug}`,
-    lastModified: new Date(post.published_at),
+    lastModified: new Date(post.updated_at || post.published_at),
     changeFrequency: "monthly",
     priority: 0.6,
   }));

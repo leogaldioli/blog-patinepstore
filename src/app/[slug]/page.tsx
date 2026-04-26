@@ -69,7 +69,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       type: "article",
       url,
       publishedTime: post.published_at,
-      modifiedTime: post.published_at,
+      modifiedTime: post.updated_at || post.published_at,
       locale: "pt_BR",
       authors: ["Patinep Store"],
       section: CATEGORY_LABELS[post.category] || post.category,

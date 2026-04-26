@@ -29,6 +29,7 @@ export type BlogPost = {
   published_at: string;
   view_count: number;
   created_at: string;
+  updated_at: string | null;
   lang: "pt" | "en";
   original_slug: string | null;
 };
