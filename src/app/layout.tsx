@@ -59,10 +59,7 @@ export const metadata: Metadata = {
     },
   },
   verification: {
-    google: process.env.NEXT_PUBLIC_GSC_VERIFICATION,
-    other: {
-      "msvalidate.01": process.env.NEXT_PUBLIC_BING_VERIFICATION || "",
-    },
+    google: "HVh9Tc4Q9X21tqIER7ywWU8BHD6RQ8lI0Fvc1A5Sj1A",
   },
 };
 
