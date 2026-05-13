@@ -12,6 +12,7 @@ import {
   extractTldr,
   addUtmToCtaHtml,
 } from "@/lib/seo";
+import CtaTracker from "@/components/CtaTracker";
 
 export const revalidate = 3600;
 
@@ -365,35 +366,38 @@ export default async function PostPage({ params }: Props) {
 
           {/* CTA */}
           {post.cta_html && (
-            <div
-              style={{
-                marginTop: 40,
-                background: "linear-gradient(135deg, #282828, #2a2a3a)",
-                borderRadius: 16,
-                padding: "24px 24px 20px",
-                position: "relative",
-                overflow: "hidden",
-              }}
-            >
-              <span
+            <>
+              <div
                 style={{
-                  position: "absolute",
-                  right: -8,
-                  bottom: -12,
-                  fontSize: 80,
-                  opacity: 0.06,
-                  userSelect: "none",
+                  marginTop: 40,
+                  background: "linear-gradient(135deg, #282828, #2a2a3a)",
+                  borderRadius: 16,
+                  padding: "24px 24px 20px",
+                  position: "relative",
+                  overflow: "hidden",
                 }}
               >
-                ⚡
-              </span>
-              <div
-                className="cta-box"
-                dangerouslySetInnerHTML={{
-                  __html: addUtmToCtaHtml(post.cta_html, slug),
-                }}
-              />
-            </div>
+                <span
+                  style={{
+                    position: "absolute",
+                    right: -8,
+                    bottom: -12,
+                    fontSize: 80,
+                    opacity: 0.06,
+                    userSelect: "none",
+                  }}
+                >
+                  ⚡
+                </span>
+                <div
+                  className="cta-box"
+                  dangerouslySetInnerHTML={{
+                    __html: addUtmToCtaHtml(post.cta_html, slug),
+                  }}
+                />
+              </div>
+              <CtaTracker slug={slug} />
+            </>
           )}
 
           {/* Posts relacionados */}
