@@ -10,6 +10,7 @@ import {
   postLanguagesAlternates,
   stripLeadingH1,
   extractTldr,
+  addUtmToCtaHtml,
 } from "@/lib/seo";
 
 export const revalidate = 3600;
@@ -376,7 +377,9 @@ export default async function EnPostPage({ params }: Props) {
               </span>
               <div
                 className="cta-box"
-                dangerouslySetInnerHTML={{ __html: post.cta_html }}
+                dangerouslySetInnerHTML={{
+                  __html: addUtmToCtaHtml(post.cta_html, slug),
+                }}
               />
             </div>
           )}

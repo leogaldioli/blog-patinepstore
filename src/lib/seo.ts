@@ -157,6 +157,28 @@ export function websiteSchema() {
   };
 }
 
+export function addUtmToCtaHtml(html: string, campaign: string): string {
+  if (!html) return html;
+  return html.replace(
+    /<a\s+([^>]*?)href=(["'])([^"']+)\2([^>]*)>/gi,
+    (match, before, quote, href, after) => {
+      if (!/^https?:\/\//i.test(href)) return match;
+      try {
+        const url = new URL(href);
+        if (url.hostname === "blog.patinepstore.com.br") return match;
+        url.searchParams.set("utm_source", "blog");
+        url.searchParams.set("utm_medium", "cta");
+        url.searchParams.set("utm_campaign", campaign);
+        url.searchParams.set("utmo", "blog");
+        url.searchParams.set("utmc", campaign);
+        return `<a ${before}href=${quote}${url.toString()}${quote}${after}>`;
+      } catch {
+        return match;
+      }
+    }
+  );
+}
+
 export function postLanguagesAlternates(
   ptSlug: string,
   enSlug: string | null,
