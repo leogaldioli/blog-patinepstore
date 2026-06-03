@@ -29,10 +29,16 @@ html {
 body {
   background-color: var(--creme);
   color: var(--preto);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+  font-family: var(--font-roboto), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-weight: 500;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6,
+.post-content h2,
+.post-content h3 {
+  font-family: var(--font-inter), -apple-system, sans-serif;
 }
 
 .post-content h2 {

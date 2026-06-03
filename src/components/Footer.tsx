@@ -1,8 +1,10 @@
+import Image from "next/image";
+
 export default function Footer() {
   return (
     <footer
       style={{
-        background: "linear-gradient(135deg, #282828, #2a2a3a)",
+        background: "linear-gradient(135deg, #161616, #1c1c26)",
         marginTop: "auto",
       }}
     >
@@ -16,18 +18,14 @@ export default function Footer() {
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-8">
           {/* Marca */}
           <div>
-            <div className="flex items-center gap-2" style={{ marginBottom: 8 }}>
-              <span
-                style={{
-                  fontSize: 20,
-                  fontWeight: 800,
-                  color: "#ffffff",
-                  letterSpacing: "-0.5px",
-                }}
-              >
-                patinep store
-              </span>
-              <span style={{ fontSize: 16, color: "#FCC425" }}>⚡</span>
+            <div style={{ marginBottom: 12 }}>
+              <Image
+                src="/patinep-logo-white.png"
+                alt="Patinep Store"
+                width={130}
+                height={35}
+                style={{ height: 32, width: "auto" }}
+              />
             </div>
             <p
               style={{

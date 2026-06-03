@@ -65,7 +65,7 @@ export default async function HomePage() {
             marginBottom: 10,
           }}
         >
-          Tudo sobre patinetes e scooters elétricos
+          Tudo sobre patinetes, autopropelidos, bicicletas e scooters elétricas
         </h1>
         <p style={{ fontSize: 15, fontWeight: 500, color: "var(--cinza-texto)", marginBottom: 0 }}>
           Guias, comparativos, manutenção e regulamentação.{" "}

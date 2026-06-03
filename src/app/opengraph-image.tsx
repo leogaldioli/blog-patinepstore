@@ -1,4 +1,10 @@
 import { ImageResponse } from "next/og";
+import { readFileSync } from "fs";
+import { join } from "path";
+
+const logoSrc =
+  "data:image/png;base64," +
+  readFileSync(join(process.cwd(), "public", "patinep-logo-white.png")).toString("base64");
 
 export const alt = "Patinep Store — Blog sobre patinetes e scooters elétricos";
 export const size = { width: 1200, height: 630 };
@@ -14,29 +20,26 @@ export default async function Image() {
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          background: "linear-gradient(135deg, #282828 0%, #2a2a3a 100%)",
+          background: "linear-gradient(135deg, #161616 0%, #1c1c26 100%)",
           padding: "64px 72px",
           color: "#ffffff",
           fontFamily: "system-ui, -apple-system, sans-serif",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 44, fontWeight: 800, letterSpacing: "-1px" }}>
-            patinep
-          </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={logoSrc} width={300} height={80} alt="Patinep Store" />
           <span
             style={{
-              fontSize: 16,
+              fontSize: 18,
               fontWeight: 700,
               color: "rgba(255,255,255,0.55)",
               letterSpacing: "2px",
               textTransform: "uppercase",
-              paddingTop: 8,
             }}
           >
             blog
           </span>
-          <span style={{ fontSize: 36, color: "#FCC425", paddingTop: 4 }}>⚡</span>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -49,7 +52,7 @@ export default async function Image() {
               maxWidth: 1000,
             }}
           >
-            Tudo sobre patinetes e scooters elétricos
+            Tudo sobre patinetes, autopropelidos, bicicletas e scooters elétricas
           </div>
           <div
             style={{

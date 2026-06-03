@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase, CATEGORY_LABELS, CATEGORY_LABELS_EN } from "@/lib/supabase";
@@ -91,7 +92,7 @@ export default function Header() {
   return (
     <header
       style={{
-        background: "linear-gradient(135deg, #282828, #2a2a3a)",
+        background: "linear-gradient(135deg, #161616, #1c1c26)",
         borderBottom: "1px solid rgba(255,255,255,0.06)",
       }}
     >
@@ -102,17 +103,14 @@ export default function Header() {
       >
         <Link href={homeHref} style={{ textDecoration: "none" }}>
           <div className="flex items-center gap-2">
-            <span
-              style={{
-                fontSize: 22,
-                fontWeight: 800,
-                color: "#ffffff",
-                letterSpacing: "-0.5px",
-                lineHeight: 1,
-              }}
-            >
-              patinep
-            </span>
+            <Image
+              src="/patinep-logo-white.png"
+              alt="Patinep Store"
+              width={104}
+              height={28}
+              priority
+              style={{ height: 28, width: "auto", display: "block" }}
+            />
             <span
               style={{
                 fontSize: 11,
@@ -120,15 +118,10 @@ export default function Header() {
                 color: "rgba(255,255,255,0.5)",
                 letterSpacing: "0.5px",
                 textTransform: "uppercase",
-                paddingTop: 1,
+                paddingTop: 2,
               }}
             >
               blog
-            </span>
-            <span
-              style={{ fontSize: 16, color: "#FCC425", marginLeft: 2, lineHeight: 1 }}
-            >
-              ⚡
             </span>
           </div>
         </Link>
@@ -164,7 +157,7 @@ export default function Header() {
               fontWeight: 700,
               fontSize: 13,
               padding: "8px 16px",
-              borderRadius: 12,
+              borderRadius: 8,
               textDecoration: "none",
               whiteSpace: "nowrap",
             }}

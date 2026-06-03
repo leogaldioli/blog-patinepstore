@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { GoogleTagManager } from "@next/third-parties/google";
+import { Inter, Roboto } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -8,6 +9,9 @@ import {
   organizationSchema,
   websiteSchema,
 } from "@/lib/seo";
+
+const inter = Inter({ subsets: ["latin"], weight: ["400", "600", "700", "800"], variable: "--font-inter", display: "swap" });
+const roboto = Roboto({ subsets: ["latin"], weight: ["400", "500", "700"], variable: "--font-roboto", display: "swap" });
 
 export const metadata: Metadata = {
   title: {
@@ -69,7 +73,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className="h-full">
+    <html lang="pt-BR" className={`${inter.variable} ${roboto.variable} h-full`}>
       <GoogleTagManager gtmId="GTM-KV8ZKF3X" />
       <head>
         <script
