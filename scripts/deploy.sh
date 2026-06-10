@@ -1,78 +1,82 @@
 #!/usr/bin/env bash
-# Deploy manual do blog-patinepstore para VPS
-# Uso: ./scripts/deploy.sh [--skip-tests]
+# Deploy manual do blog-patinepstore para VPS — build LOCAL no Mac.
+#
+# NUNCA rode `next build` na VPS: 8GB compartilhados com ~15 apps; um build
+# pesado na VPS já derrubou a máquina inteira por OOM (incidente 10/jun/2026).
+# As NEXT_PUBLIC_* (inlined no bundle) são puxadas do .env.production da VPS
+# na hora do build — fonte única de verdade.
+#
+# Uso: ./scripts/deploy.sh
 set -euo pipefail
 
 VPS_HOST="46.202.147.81"
 VPS_USER="root"
 DEPLOY_PATH="/opt/blog-patinepstore"
 APP_NAME="blog-patinepstore"
-SKIP_TESTS=false
-for arg in "$@"; do
-  case $arg in
-    --skip-tests) SKIP_TESTS=true ;;
-  esac
-done
+HEALTH_URL="https://blog.patinepstore.com.br"
 
-# Testes (não há testes no blog por ora)
-if [ "$SKIP_TESTS" = false ]; then
-  echo "Sem testes configurados, pulando..."
+cd "$(dirname "$0")/.."
+
+echo "🔑 Puxando NEXT_PUBLIC_* do .env.production da VPS..."
+eval "$(ssh "${VPS_USER}@${VPS_HOST}" "grep -E '^NEXT_PUBLIC_(SUPABASE_URL|SUPABASE_ANON_KEY|BASE_URL)=' ${DEPLOY_PATH}/.env.production" | sed 's/^/export /')"
+: "${NEXT_PUBLIC_SUPABASE_URL:?não encontrada no .env.production da VPS}"
+
+echo "🏗  Build local do Next.js..."
+npm run build
+
+# standalone pode vir aninhado (Next infere workspace root errado)
+STANDALONE=".next/standalone"
+if [ ! -f "$STANDALONE/server.js" ]; then
+  NESTED=$(find .next/standalone -maxdepth 4 -name server.js | head -1)
+  [ -n "$NESTED" ] || { echo "❌ server.js não encontrado — build falhou?"; exit 1; }
+  STANDALONE=$(dirname "$NESTED")
 fi
 
-echo "Empacotando código..."
-TMPFILE=$(mktemp /tmp/deploy-blog-XXXXXX.tar.gz)
-tar czf "$TMPFILE" \
-  --exclude=node_modules \
-  --exclude=.next \
-  --exclude=.git \
-  --exclude='.env*' \
-  --exclude='*.env' \
-  --exclude=.DS_Store \
-  .
+echo "📦 Empacotando artefatos (standalone em $STANDALONE)..."
+STAGE=$(mktemp -d "/tmp/${APP_NAME}-deploy-XXXXXX")
+cp -R "$STANDALONE/" "$STAGE/standalone/"
+cp -R .next/static "$STAGE/static"
+cp -R public "$STAGE/public"
 
-SIZE=$(du -h "$TMPFILE" | cut -f1)
-echo "Pacote: $SIZE"
+cat > "$STAGE/Dockerfile.prebuilt" << 'DOCKER'
+# Imagem montada a partir de artefatos buildados FORA da VPS. Só COPY.
+FROM node:20-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
+COPY standalone/ ./
+COPY static/ ./.next/static
+COPY public/ ./public
+RUN chown -R nextjs:nodejs /app/.next
+USER nextjs
+EXPOSE 3000
+CMD ["node", "server.js"]
+DOCKER
 
-echo "Enviando para VPS..."
-scp -o StrictHostKeyChecking=no "$TMPFILE" "${VPS_USER}@${VPS_HOST}:${DEPLOY_PATH}/_build.tar.gz"
-rm "$TMPFILE"
+TARBALL="/tmp/${APP_NAME}-prebuilt.tar.gz"
+COPYFILE_DISABLE=1 tar czf "$TARBALL" -C "$STAGE" .
+echo "   pacote: $(du -h "$TARBALL" | cut -f1)"
 
-echo "Buildando e deployando na VPS..."
-ssh -o StrictHostKeyChecking=no "${VPS_USER}@${VPS_HOST}" bash -s <<'REMOTE'
+echo "🚀 Enviando e subindo na VPS..."
+scp -q "$TARBALL" "${VPS_USER}@${VPS_HOST}:${DEPLOY_PATH}/_prebuilt.tar.gz"
+ssh "${VPS_USER}@${VPS_HOST}" bash -s << EOF
 set -euo pipefail
-cd /opt/blog-patinepstore
-
-rm -rf _build
-mkdir _build
-tar xzf _build.tar.gz -C _build 2>/dev/null
-rm _build.tar.gz
-
-SUPABASE_URL=$(grep '^NEXT_PUBLIC_SUPABASE_URL=' .env.production | cut -d= -f2-)
-SUPABASE_KEY=$(grep '^NEXT_PUBLIC_SUPABASE_ANON_KEY=' .env.production | cut -d= -f2-)
-BASE_URL=$(grep '^NEXT_PUBLIC_BASE_URL=' .env.production | cut -d= -f2-)
-
-cd _build
-docker build \
-  --build-arg NEXT_PUBLIC_SUPABASE_URL="$SUPABASE_URL" \
-  --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="$SUPABASE_KEY" \
-  --build-arg NEXT_PUBLIC_BASE_URL="$BASE_URL" \
-  -t blog-patinepstore:latest .
-
-cd /opt/blog-patinepstore
+cd "${DEPLOY_PATH}"
+rm -rf _prebuilt && mkdir _prebuilt
+tar xzf _prebuilt.tar.gz -C _prebuilt
+docker build -q -t "${APP_NAME}:latest" -f _prebuilt/Dockerfile.prebuilt _prebuilt
 docker compose -f docker-compose.prod.yml up -d --force-recreate
+rm -rf _prebuilt _prebuilt.tar.gz
+docker image prune -f > /dev/null
+EOF
 
-# Conecta à rede Swarm overlay do Traefik (necessário pois docker-compose não alcança redes overlay)
-sleep 2
-docker network disconnect easypanel blog-patinepstore-app 2>/dev/null || true
-docker network connect --alias blog-patinepstore easypanel blog-patinepstore-app
+rm -rf "$STAGE" "$TARBALL"
 
-rm -rf _build
-docker image prune -f
-
-echo ""
-echo "=== Status ==="
-docker ps --filter name=blog-patinepstore --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-REMOTE
-
-echo ""
-echo "Deploy concluído!"
+echo "⏳ Verificando..."
+sleep 8
+ssh "${VPS_USER}@${VPS_HOST}" "docker ps --filter name=${APP_NAME} --format '{{.Names}} {{.Status}}'"
+curl -s -o /dev/null -w "${HEALTH_URL} → %{http_code}\n" "$HEALTH_URL"
+echo "✅ Deploy concluído"
