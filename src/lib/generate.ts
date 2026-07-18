@@ -437,7 +437,9 @@ export async function getPendingTranslations(limit: number): Promise<BlogPost[]>
     .eq("lang", "en")
     .not("original_slug", "is", null);
 
-  const translatedSlugs = new Set((enPosts || []).map((p) => p.original_slug as string));
+  const translatedSlugs = new Set(
+    ((enPosts as { original_slug: string }[] | null) || []).map((p) => p.original_slug)
+  );
 
   const { data, error } = await supabaseAdmin
     .from("blog_posts")

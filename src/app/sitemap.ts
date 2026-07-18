@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { supabase, type BlogPost } from "@/lib/supabase";
 import { MetadataRoute } from "next";
 
 const BASE_URL =
@@ -13,7 +13,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .eq("status", "published")
     .order("published_at", { ascending: false });
 
-  const allPosts = posts || [];
+  const allPosts: Pick<BlogPost, "slug" | "published_at" | "updated_at" | "category" | "lang">[] =
+    posts || [];
   const ptPosts = allPosts.filter((p) => p.lang === "pt" || !p.lang);
   const enPosts = allPosts.filter((p) => p.lang === "en");
 

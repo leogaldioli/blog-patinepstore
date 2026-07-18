@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { BlogPost, CATEGORY_LABELS, CATEGORY_LABELS_EN } from "@/lib/supabase";
+import { BlogPost, CATEGORY_LABELS, CATEGORY_LABELS_EN } from "@/lib/blog-shared";
 
 type Props = {
   post: BlogPost;

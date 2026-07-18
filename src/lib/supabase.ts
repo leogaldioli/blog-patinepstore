@@ -1,74 +1,26 @@
-import { createClient } from "@supabase/supabase-js";
+// Pós-migração (jul/2026): blog_posts/blog_topics vivem no Postgres da VPS
+// (clube-patinep-db). O shim pg reproduz a API do supabase-js usada aqui
+// (.from().select().eq()..., contrato {data, error}) sobre conexão direta.
+import { Pool } from "pg";
+import { createPgClient, type QueryFn } from "./pg-shim";
 
-const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseAnonKey =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
-const supabaseServiceKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder";
+let pool: Pool | null = null;
+const poolQuery: QueryFn = async (sql, params) => {
+  if (!pool) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL não definida (Postgres do clube na VPS)");
+    }
+    pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 5 });
+  }
+  const res = await pool.query(sql, params);
+  return { rows: res.rows, rowCount: res.rowCount };
+};
 
-// Client público — leitura de posts publicados
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Leitura de posts publicados (mesmo client para leitura e escrita — a
+// separação anon/service era do Supabase; aqui a fronteira é o server).
+export const supabase = createPgClient(poolQuery);
 
 // Client admin — escrita (usado no cron de geração)
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+export const supabaseAdmin = createPgClient(poolQuery);
 
-export type BlogPost = {
-  id: string;
-  topic_id: string | null;
-  slug: string;
-  title: string;
-  meta_description: string;
-  content_html: string;
-  category: string;
-  reading_time_min: number;
-  faq_json: { question: string; answer: string }[] | null;
-  cta_html: string | null;
-  lp_link: string | null;
-  status: "published" | "draft" | "removed";
-  published_at: string;
-  view_count: number;
-  created_at: string;
-  updated_at: string | null;
-  lang: "pt" | "en";
-  original_slug: string | null;
-};
-
-export type BlogTopic = {
-  id: string;
-  keyword: string;
-  title_suggestion: string;
-  category: string;
-  status: "pending" | "generating" | "done" | "error";
-  priority: number;
-  created_at: string;
-  generated_at: string | null;
-};
-
-export const CATEGORY_LABELS: Record<string, string> = {
-  "guia-de-compra": "Guia de Compra",
-  manutencao: "Manutenção",
-  regulamentacao: "Regulamentação",
-  economia: "Economia",
-  seguranca: "Segurança",
-  hiperlocal: "Maringá e Região",
-  delivery: "Delivery",
-  faq: "Perguntas Frequentes",
-  tecnico: "Técnico",
-  lifestyle: "Lifestyle",
-};
-
-export const CATEGORY_LABELS_EN: Record<string, string> = {
-  "guia-de-compra": "Buying Guide",
-  manutencao: "Maintenance",
-  regulamentacao: "Regulations",
-  economia: "Economy",
-  seguranca: "Safety",
-  hiperlocal: "Maringá & Region",
-  delivery: "Delivery",
-  faq: "FAQ",
-  tecnico: "Technical",
-  lifestyle: "Lifestyle",
-};
-
-export const POSTS_PER_PAGE = 12;
+export * from "./blog-shared";

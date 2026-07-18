@@ -35,6 +35,24 @@ fi
 echo "📦 Empacotando artefatos (standalone em $STANDALONE)..."
 STAGE=$(mktemp -d "/tmp/${APP_NAME}-deploy-XXXXXX")
 cp -R "$STANDALONE/" "$STAGE/standalone/"
+
+# pg é external (Postgres da VPS pós-migração): o tracing do standalone pode
+# copiar pacotes incompletos e o Turbopack referencia aliases hasheados
+# ("pg-<hash16>") que não existem — recopia os pacotes completos + symlinks.
+# (mesma correção do clube-patinep/scripts/deploy.sh)
+for pkg in pg pg-pool pg-protocol pg-types pg-connection-string pg-int8 pg-cloudflare pgpass postgres-array postgres-bytea postgres-date postgres-interval split2 xtend; do
+  if [ -d "node_modules/$pkg" ]; then
+    rm -rf "$STAGE/standalone/node_modules/$pkg"
+    cp -R "node_modules/$pkg" "$STAGE/standalone/node_modules/$pkg"
+  fi
+done
+for alias in $(grep -ohrE '"[a-zA-Z0-9_.-]+-[0-9a-f]{16}"' "$STAGE/standalone/.next/server/chunks" 2>/dev/null | tr -d '"' | sort -u); do
+  real="${alias%-*}"
+  if [ -d "$STAGE/standalone/node_modules/$real" ] && [ ! -e "$STAGE/standalone/node_modules/$alias" ]; then
+    ln -s "$real" "$STAGE/standalone/node_modules/$alias"
+    echo "   alias $alias -> $real (symlink)"
+  fi
+done
 cp -R .next/static "$STAGE/static"
 cp -R public "$STAGE/public"
 

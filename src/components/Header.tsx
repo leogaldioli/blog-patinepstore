@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { supabase, CATEGORY_LABELS, CATEGORY_LABELS_EN } from "@/lib/supabase";
+import { CATEGORY_LABELS, CATEGORY_LABELS_EN } from "@/lib/blog-shared";
 
 const destaque = ["guia-de-compra", "manutencao", "regulamentacao", "delivery"];
 
@@ -42,28 +42,19 @@ export default function Header() {
     let cancelled = false;
 
     async function fetchTranslated() {
-      if (isEn) {
-        // EN post → find original PT slug
-        const { data } = await supabase
-          .from("blog_posts")
-          .select("original_slug")
-          .eq("slug", currentSlug!)
-          .eq("lang", "en")
-          .maybeSingle();
-        if (!cancelled && data?.original_slug) {
-          setTranslatedPostHref(`/${data.original_slug}`);
+      // Pós-migração: lookup do slug traduzido via rota API (server-side).
+      try {
+        const from = isEn ? "en" : "pt";
+        const res = await fetch(
+          `/api/translated?slug=${encodeURIComponent(currentSlug!)}&from=${from}`
+        );
+        if (!res.ok) return;
+        const { slug } = await res.json();
+        if (!cancelled && slug) {
+          setTranslatedPostHref(isEn ? `/${slug}` : `/en/${slug}`);
         }
-      } else {
-        // PT post → find EN slug
-        const { data } = await supabase
-          .from("blog_posts")
-          .select("slug")
-          .eq("original_slug", currentSlug!)
-          .eq("lang", "en")
-          .maybeSingle();
-        if (!cancelled && data?.slug) {
-          setTranslatedPostHref(`/en/${data.slug}`);
-        }
+      } catch {
+        /* cosmético — sem link de tradução em caso de erro */
       }
     }
 
