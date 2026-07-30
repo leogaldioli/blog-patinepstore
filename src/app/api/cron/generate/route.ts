@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generatePost, getPendingTopics } from "@/lib/generate";
+import { notifyBot, escapeHtml } from "@/lib/notify";
+import { BASE_URL } from "@/lib/seo";
 
 // 3/dia: ritmo sustentável — 148 posts em 18 dias (abr/2026) deixou 38% das
 // páginas "rastreada, não indexada" no GSC. Qualidade > volume; ajustável
@@ -31,7 +33,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Geração sequencial com delay para respeitar rate limit de 10k tokens/min do Haiku
-  const summary: { topic: string; success: boolean; slug?: string; error?: string; warning?: string }[] = [];
+  const summary: { topic: string; success: boolean; slug?: string; title?: string; enSlug?: string; error?: string; warning?: string }[] = [];
   for (const topic of topics) {
     const result = await generatePost(topic);
     summary.push({ topic: topic.keyword, ...result });
@@ -45,6 +47,24 @@ export async function GET(req: NextRequest) {
   const failed = summary.filter((s) => !s.success).length;
 
   console.log(`[cron/generate] ${succeeded} gerados (${drafts} para revisão), ${failed} erros`);
+
+  // Notifica o dono no Telegram (via bot-patinep) — best-effort
+  if (succeeded > 0 || failed > 0) {
+    const lines = summary.map((s) => {
+      if (s.success) {
+        const flags = [s.warning ? "📝 draft p/ revisão" : null, s.enSlug ? "EN ✅" : "EN ❌"]
+          .filter(Boolean)
+          .join(" · ");
+        return `• <a href="${BASE_URL}/${s.slug}">${escapeHtml(s.title || s.topic)}</a>\n  ${flags}`;
+      }
+      return `• ⚠️ Falhou: ${escapeHtml(s.topic)} — ${escapeHtml((s.error || "").slice(0, 120))}`;
+    });
+    const header =
+      succeeded > 0
+        ? `🛴 <b>Blog Patinep: ${succeeded} post${succeeded > 1 ? "s" : ""} novo${succeeded > 1 ? "s" : ""}</b>${failed > 0 ? ` (${failed} falha${failed > 1 ? "s" : ""})` : ""}`
+        : `⚠️ <b>Blog Patinep: geração falhou (${failed})</b>`;
+    await notifyBot(`${header}\n\n${lines.join("\n")}`);
+  }
 
   return NextResponse.json({
     generated: succeeded,

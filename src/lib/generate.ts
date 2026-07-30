@@ -296,7 +296,7 @@ export function parseGeneratedJson(rawText: string): any {
 
 export async function generatePost(
   topic: BlogTopic
-): Promise<{ success: boolean; slug?: string; enSlug?: string; error?: string; warning?: string }> {
+): Promise<{ success: boolean; slug?: string; title?: string; enSlug?: string; error?: string; warning?: string }> {
   try {
     await supabaseAdmin
       .from("blog_topics")
@@ -376,6 +376,7 @@ export async function generatePost(
     return {
       success: true,
       slug: finalSlug,
+      title: generated.title,
       enSlug,
       ...(validation.valid ? {} : { warning: `Draft — revisar: ${validation.issues.join("; ")}` }),
     };
