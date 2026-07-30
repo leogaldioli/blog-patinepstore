@@ -12,7 +12,9 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const summary = await refillTopics();
+    // force=1: gera um lote novo mesmo com a fila cheia (uso manual/teste)
+    const force = req.nextUrl.searchParams.get("force") === "1";
+    const summary = await refillTopics(force);
     return NextResponse.json(summary);
   } catch (err) {
     const detail = err instanceof Error ? err.message : JSON.stringify(err);

@@ -113,7 +113,7 @@ export type RefillSummary = {
   pending_after: number;
 };
 
-export async function refillTopics(): Promise<RefillSummary> {
+export async function refillTopics(force = false): Promise<RefillSummary> {
   // 1. Destravar tópicos presos em 'generating' (processo morreu no meio)
   const { data: stuck } = await supabaseAdmin
     .from("blog_topics")
@@ -159,7 +159,7 @@ export async function refillTopics(): Promise<RefillSummary> {
     pending_after: pendingBefore,
   };
 
-  if (pendingBefore >= MIN_QUEUE) return summary;
+  if (!force && pendingBefore >= MIN_QUEUE) return summary;
 
   // 4. Gerar novos tópicos com dedupe contra todos os keywords existentes
   const { data: all } = await supabaseAdmin.from("blog_topics").select("keyword");
