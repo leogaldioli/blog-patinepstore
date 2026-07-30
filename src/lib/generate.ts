@@ -236,20 +236,29 @@ async function validatePost(
   }
 }
 
-/** Slug livre: tenta base, depois -2, -3… (fim dos sufixos de timestamp). */
-async function uniqueSlug(base: string, lang: "pt" | "en"): Promise<string> {
+/** Slug livre: tenta base, depois -2, -3… (fim dos sufixos de timestamp).
+ *  A constraint UNIQUE de slug é GLOBAL (não por idioma) — checar sem lang. */
+async function uniqueSlug(base: string): Promise<string> {
   let candidate = base;
   for (let i = 2; i <= 20; i++) {
     const { data } = await supabaseAdmin
       .from("blog_posts")
       .select("id")
       .eq("slug", candidate)
-      .eq("lang", lang)
       .maybeSingle();
     if (!data) return candidate;
     candidate = `${base}-${i}`;
   }
   return `${base}-${Date.now()}`;
+}
+
+/** Shim retorna {message, code, details} (não Error) — normaliza pra Error. */
+function toError(e: unknown): Error {
+  if (e instanceof Error) return e;
+  if (e && typeof e === "object" && "message" in e) {
+    return new Error(String((e as { message: unknown }).message));
+  }
+  return new Error(JSON.stringify(e));
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -310,7 +319,7 @@ export async function generatePost(
       throw new Error(`JSON inválido: ${rawText.slice(0, 200)}`);
     }
 
-    const finalSlug = await uniqueSlug(slugify(generated.title), "pt");
+    const finalSlug = await uniqueSlug(slugify(generated.title));
 
     const validation = await validatePost(generated.content_html, generated.faq);
     const postStatus = validation.valid ? "published" : "draft";
@@ -335,7 +344,7 @@ export async function generatePost(
       original_slug: null,
     });
 
-    if (insertError) throw insertError;
+    if (insertError) throw toError(insertError);
 
     await supabaseAdmin
       .from("blog_topics")
@@ -399,7 +408,7 @@ async function generateEnglishVersion(opts: {
   const rawText = message.content[0].type === "text" ? message.content[0].text : "";
   const generated = parseGeneratedJson(rawText);
 
-  const enSlug = await uniqueSlug(slugify(generated.title), "en");
+  const enSlug = await uniqueSlug(slugify(generated.title));
 
   const { error } = await supabaseAdmin.from("blog_posts").insert({
     topic_id: opts.topic_id,
@@ -417,7 +426,7 @@ async function generateEnglishVersion(opts: {
     original_slug: opts.original_slug,
   });
 
-  if (error) throw error;
+  if (error) throw toError(error);
   return enSlug;
 }
 
@@ -452,7 +461,7 @@ export async function translatePostToEnglish(
 
     return { success: true, slug: enSlug };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = toError(err).message;
     console.error("[translate] Failed for", ptPost.slug, ":", message);
     return { success: false, error: message };
   }
@@ -467,7 +476,7 @@ export async function getPendingTopics(limit: number): Promise<BlogTopic[]> {
     .order("created_at", { ascending: true })
     .limit(limit);
 
-  if (error) throw error;
+  if (error) throw toError(error);
   return (data as BlogTopic[]) || [];
 }
 
@@ -492,7 +501,7 @@ export async function getPendingTranslations(limit: number): Promise<BlogPost[]>
     .order("published_at", { ascending: false })
     .limit(limit * 3); // fetch more, filter in memory
 
-  if (error) throw error;
+  if (error) throw toError(error);
 
   return ((data as BlogPost[]) || [])
     .filter((p) => !translatedSlugs.has(p.slug))
