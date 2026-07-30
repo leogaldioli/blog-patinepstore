@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
     const result = await generatePost(topic);
     summary.push({ topic: topic.keyword, ...result });
     if (summary.length < topics.length) {
-      await new Promise((r) => setTimeout(r, 8000)); // 8s entre posts
+      await new Promise((r) => setTimeout(r, 15000)); // 15s entre posts (max_tokens maior → mais tokens/min)
     }
   }
 

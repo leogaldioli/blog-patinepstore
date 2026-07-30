@@ -304,11 +304,15 @@ export async function generatePost(
       .eq("id", topic.id);
 
     // ── Generate PT post ──
+    // 8192: com 4096 posts completos vinham truncados (JSON inválido)
     const message = await anthropic.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 4096,
+      max_tokens: 8192,
       messages: [{ role: "user", content: buildPrompt(topic) }],
     });
+    if (message.stop_reason === "max_tokens") {
+      throw new Error("Resposta truncada (max_tokens) — post longo demais");
+    }
 
     const rawText = message.content[0].type === "text" ? message.content[0].text : "";
     let generated: GeneratedPost;
@@ -401,9 +405,12 @@ async function generateEnglishVersion(opts: {
 
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 4096,
+    max_tokens: 8192,
     messages: [{ role: "user", content: prompt }],
   });
+  if (message.stop_reason === "max_tokens") {
+    throw new Error("Tradução truncada (max_tokens)");
+  }
 
   const rawText = message.content[0].type === "text" ? message.content[0].text : "";
   const generated = parseGeneratedJson(rawText);
