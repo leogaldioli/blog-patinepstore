@@ -268,6 +268,16 @@ class PgQueryBuilder implements PromiseLike<ShimResponse> {
     return sql;
   }
 
+  /** Valores de linha (INSERT/UPDATE/UPSERT): arrays JS viram JSON string —
+   *  o driver pg converte array para literal '{...}' (array Postgres), que
+   *  quebra colunas jsonb (ex.: faq_json → "invalid input syntax for type
+   *  json"). Objetos puros o pg já serializa como JSON. Sem colunas array
+   *  nativas neste schema, então o stringify é sempre o comportamento certo
+   *  (paridade com supabase-js/PostgREST). */
+  private rowValue(v: unknown): unknown {
+    return Array.isArray(v) ? JSON.stringify(v) : v;
+  }
+
   private buildMutationSql(): string {
     const returning = this.wantRows ? " RETURNING *" : "";
 
@@ -284,7 +294,7 @@ class PgQueryBuilder implements PromiseLike<ShimResponse> {
       const wheres = this.wheres.map((w) =>
         w.replace(/\$(\d+)/g, (_, n) => `$${Number(n) + shift}`)
       );
-      this.params = [...entries.map(([, v]) => v), ...this.params];
+      this.params = [...entries.map(([, v]) => this.rowValue(v)), ...this.params];
       const sets = entries.map(([c], i) => `${qi(c)} = $${i + 1}`);
       const where = wheres.length ? ` WHERE ${wheres.join(" AND ")}` : "";
       return `UPDATE ${qi(this.table)} base SET ${sets.join(", ")}${where}${returning}`;
@@ -293,7 +303,7 @@ class PgQueryBuilder implements PromiseLike<ShimResponse> {
     // insert / upsert
     const cols = Object.keys(this.values[0]);
     const rows = this.values.map(
-      (row) => `(${cols.map((c) => this.p(row[c])).join(", ")})`
+      (row) => `(${cols.map((c) => this.p(this.rowValue(row[c]))).join(", ")})`
     );
     let sql = `INSERT INTO ${qi(this.table)} (${cols.map(qi).join(", ")}) VALUES ${rows.join(", ")}`;
     if (this.mode === "upsert" && this.conflict.length) {
