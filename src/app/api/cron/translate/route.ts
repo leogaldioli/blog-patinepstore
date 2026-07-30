@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     posts = await getPendingTranslations(safeLimit);
   } catch (err) {
     return NextResponse.json(
-      { error: "Erro ao buscar posts para tradução", detail: String(err) },
+      { error: "Erro ao buscar posts para tradução", detail: err instanceof Error ? err.message : JSON.stringify(err) },
       { status: 500 }
     );
   }

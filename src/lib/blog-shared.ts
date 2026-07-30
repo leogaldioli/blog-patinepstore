@@ -29,6 +29,7 @@ export type BlogTopic = {
   category: string;
   status: "pending" | "generating" | "done" | "error";
   priority: number;
+  retry_count: number | null;
   created_at: string;
   generated_at: string | null;
 };

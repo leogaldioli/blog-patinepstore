@@ -34,3 +34,24 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+---
+
+## Esteira de conteúdo (automática)
+
+Pipeline auto-abastecida rodando via cron na VPS (`crontab -l` como root), todos os endpoints protegidos por `?secret=$CRON_SECRET`:
+
+| Horário (UTC) | Endpoint | Função |
+|---|---|---|
+| 07:30 diário | `/api/cron/topics` | Reabastece a fila: destrava `generating`, re-enfileira `error` (retry < 3) e, se pending < 15, gera ~30 tópicos novos com Claude (dedupe contra todos os keywords já usados) |
+| 08:00 diário | `/api/cron/generate?limit=3` | Gera 3 posts PT (Haiku + fact-check) + versão EN de cada |
+| 09:00 diário | `/api/cron/translate` | Rede de segurança: traduz posts PT sem versão EN |
+
+Sob demanda:
+- `/api/cron/status` — saúde da esteira (503 se travada: fila vazia + sem post há 72h). Apontar no Uptime Kuma.
+- `/api/cron/refresh-ctas?limit=10` — retrofit: posts de manutenção/técnico ganham CTA de assistência (WhatsApp) no lugar do CTA de venda. Rodar em loop até `remaining: 0`.
+- `/api/cron/optimize-meta?slugs=a,b,c` — reescreve title/meta de posts com CTR ruim no GSC (URL não muda).
+
+CTA por intenção (`src/lib/generate.ts`): categoria `manutencao`/`tecnico` ou keyword de defeito → WhatsApp da assistência (`wa.me/554491024396`); resto → LP de venda. Racional: GSC mostrou que os posts top são de defeito (leitor já TEM patinete) e o repasse blog→site era ~1% com CTA de venda.
+
+GEO/AEO: `/llms.txt` dinâmico + AI crawlers liberados no `robots.txt` — o conteúdo EN existe para answer engines citarem a loja.

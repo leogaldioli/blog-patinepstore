@@ -135,11 +135,18 @@ export function organizationSchema() {
     },
     description:
       "Loja especializada em patinetes e scooters elétricos em Maringá-PR. Vendas, manutenção e consultoria em micromobilidade.",
+    telephone: "+55-44-9102-4396",
     address: {
       "@type": "PostalAddress",
       addressLocality: "Maringá",
       addressRegion: "PR",
       addressCountry: "BR",
+    },
+    contactPoint: {
+      "@type": "ContactPoint",
+      telephone: "+55-44-9102-4396",
+      contactType: "customer service",
+      availableLanguage: ["Portuguese", "English"],
     },
     sameAs: [STORE_URL],
   };
@@ -166,6 +173,9 @@ export function addUtmToCtaHtml(html: string, campaign: string): string {
       try {
         const url = new URL(href);
         if (url.hostname === "blog.patinepstore.com.br") return match;
+        // wa.me abre app externo: UTM não é lida pelo GA e polui a mensagem.
+        // O clique já é rastreado pelo evento cta_click (CtaTracker).
+        if (url.hostname === "wa.me" || url.hostname === "api.whatsapp.com") return match;
         url.searchParams.set("utm_source", "blog");
         url.searchParams.set("utm_medium", "cta");
         url.searchParams.set("utm_campaign", campaign);

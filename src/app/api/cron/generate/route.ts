@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generatePost, getPendingTopics } from "@/lib/generate";
 
-const POSTS_PER_RUN = 10;
+// 3/dia: ritmo sustentável — 148 posts em 18 dias (abr/2026) deixou 38% das
+// páginas "rastreada, não indexada" no GSC. Qualidade > volume; ajustável
+// via ?limit= no crontab.
+const POSTS_PER_RUN = 3;
 
 export async function GET(req: NextRequest) {
   const secret = req.nextUrl.searchParams.get("secret");
@@ -18,7 +21,7 @@ export async function GET(req: NextRequest) {
     topics = await getPendingTopics(safeLimit);
   } catch (err) {
     return NextResponse.json(
-      { error: "Erro ao buscar tópicos", detail: String(err) },
+      { error: "Erro ao buscar tópicos", detail: err instanceof Error ? err.message : JSON.stringify(err) },
       { status: 500 }
     );
   }

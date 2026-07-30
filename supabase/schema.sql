@@ -17,6 +17,7 @@ CREATE TABLE blog_topics (
   )),
   status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'generating', 'done', 'error')),
   priority INTEGER DEFAULT 5,
+  retry_count INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now(),
   generated_at TIMESTAMPTZ
 );

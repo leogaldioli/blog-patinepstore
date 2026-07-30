@@ -35,11 +35,47 @@ function getLpLink(category: string, keyword: string): string | null {
   return null;
 }
 
+// ── CTA por intenção ──────────────────────────────────────────────────────
+// Quem busca "não carrega"/"conserto" JÁ TEM patinete: CTA de venda não
+// converte (aprendizado GSC/GA jul/2026 — repasse de ~1%). Manutenção →
+// WhatsApp da assistência; resto → LP de venda.
+
+export const WHATSAPP_NUMBER = "554491024396";
+
+export function whatsappCtaLink(context: string, lang: "pt" | "en" = "pt"): string {
+  const msg =
+    lang === "en"
+      ? `Hi! I found Patinep through the blog (${context}) and I need help with my e-scooter.`
+      : `Olá! Vim pelo blog da Patinep (${context}) e preciso de ajuda com meu patinete/scooter.`;
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+}
+
+const REPAIR_HINTS = [
+  "não liga", "nao liga", "não carrega", "nao carrega", "não acelera", "nao acelera",
+  "defeito", "conserto", "reparo", "travado", "barulho", "revisão", "revisao",
+  "oficina", "manutenção", "manutencao", "assistência", "assistencia",
+  "queimado", "problema", "erro", "calibrar", "furou", "furo", "troca de bateria",
+];
+
+export type CtaIntent = "assistencia" | "venda";
+
+export function getCtaIntent(category: string, keyword: string): CtaIntent {
+  if (category === "manutencao" || category === "tecnico") return "assistencia";
+  const text = keyword.toLowerCase();
+  if (REPAIR_HINTS.some((h) => text.includes(h))) return "assistencia";
+  return "venda";
+}
+
 function buildPrompt(topic: BlogTopic): string {
-  const lpLink = getLpLink(topic.category, topic.keyword);
-  const lpInstruction = lpLink
-    ? `Inclua um link para ${lpLink} de forma natural no conteúdo ou no CTA.`
-    : `Inclua um link para https://patinepstore.com.br de forma natural no conteúdo ou no CTA.`;
+  const intent = getCtaIntent(topic.category, topic.keyword);
+  const lpLink =
+    intent === "assistencia"
+      ? whatsappCtaLink(topic.keyword)
+      : getLpLink(topic.category, topic.keyword) || "https://patinepstore.com.br";
+  const lpInstruction =
+    intent === "assistencia"
+      ? `O leitor deste post provavelmente JÁ TEM um patinete/scooter e está com problema ou dúvida técnica. O CTA deve oferecer a ASSISTÊNCIA TÉCNICA da Patinep Store (oficina própria em Maringá, peças originais, diagnóstico honesto) — NÃO ofereça compra de patinete novo no CTA. Link do botão do CTA: ${lpLink} (texto do botão claro, tipo "Falar com a assistência no WhatsApp").`
+      : `Inclua um link para ${lpLink} de forma natural no conteúdo ou no CTA.`;
 
   return `Você é redator da Patinep Store, loja especializada em micromobilidade elétrica em Maringá, PR, Brasil.
 
@@ -91,6 +127,10 @@ REGRAS DE QUALIDADE:
 - Mencione Maringá quando contextualmente relevante
 - Português brasileiro com acentuação correta
 - Parágrafos curtos (3-4 linhas máximo)
+
+TÍTULO E META DESCRIPTION (CTR no Google — CRÍTICO):
+- Título: keyword (ou variação próxima) no INÍCIO, até ~62 caracteres, com um elemento concreto que ganhe o clique: número, ano ${new Date().getFullYear()}, benefício ou a resposta direta ("7 causas", "guia ${new Date().getFullYear()}", "resolva em casa")
+- meta_description: 150-160 caracteres — entregue a resposta/benefício + um motivo para clicar (detalhe extra que só o post tem). Sem clickbait vazio.
 
 LINKS: ${lpInstruction}
 
@@ -196,7 +236,24 @@ async function validatePost(
   }
 }
 
-function parseGeneratedJson(rawText: string): GeneratedPost {
+/** Slug livre: tenta base, depois -2, -3… (fim dos sufixos de timestamp). */
+async function uniqueSlug(base: string, lang: "pt" | "en"): Promise<string> {
+  let candidate = base;
+  for (let i = 2; i <= 20; i++) {
+    const { data } = await supabaseAdmin
+      .from("blog_posts")
+      .select("id")
+      .eq("slug", candidate)
+      .eq("lang", lang)
+      .maybeSingle();
+    if (!data) return candidate;
+    candidate = `${base}-${i}`;
+  }
+  return `${base}-${Date.now()}`;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function parseGeneratedJson(rawText: string): any {
   let jsonStr: string | null = null;
   const codeBlockMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (codeBlockMatch) {
@@ -253,14 +310,7 @@ export async function generatePost(
       throw new Error(`JSON inválido: ${rawText.slice(0, 200)}`);
     }
 
-    const slug = slugify(generated.title);
-    const { data: existing } = await supabaseAdmin
-      .from("blog_posts")
-      .select("id")
-      .eq("slug", slug)
-      .eq("lang", "pt")
-      .maybeSingle();
-    const finalSlug = existing ? `${slug}-${Date.now()}` : slug;
+    const finalSlug = await uniqueSlug(slugify(generated.title), "pt");
 
     const validation = await validatePost(generated.content_html, generated.faq);
     const postStatus = validation.valid ? "published" : "draft";
@@ -319,10 +369,10 @@ export async function generatePost(
   } catch (err) {
     await supabaseAdmin
       .from("blog_topics")
-      .update({ status: "error" })
+      .update({ status: "error", retry_count: (topic.retry_count ?? 0) + 1 })
       .eq("id", topic.id);
 
-    const message = err instanceof Error ? err.message : String(err);
+    const message = err instanceof Error ? err.message : JSON.stringify(err);
     return { success: false, error: message };
   }
 }
@@ -349,14 +399,7 @@ async function generateEnglishVersion(opts: {
   const rawText = message.content[0].type === "text" ? message.content[0].text : "";
   const generated = parseGeneratedJson(rawText);
 
-  const baseSlug = slugify(generated.title);
-  const { data: existing } = await supabaseAdmin
-    .from("blog_posts")
-    .select("id")
-    .eq("slug", baseSlug)
-    .eq("lang", "en")
-    .maybeSingle();
-  const enSlug = existing ? `${baseSlug}-${Date.now()}` : baseSlug;
+  const enSlug = await uniqueSlug(slugify(generated.title), "en");
 
   const { error } = await supabaseAdmin.from("blog_posts").insert({
     topic_id: opts.topic_id,
