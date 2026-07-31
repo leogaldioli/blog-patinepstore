@@ -59,6 +59,31 @@ const REPAIR_HINTS = [
 
 export type CtaIntent = "assistencia" | "venda";
 
+/** Data atual em SP — os modelos assumem o ano do treinamento deles se o
+ *  prompt não disser a data (post saiu com "guia 2025" em jul/2026). */
+export function dataAtualBr(): { dataExtenso: string; ano: number } {
+  const now = new Date();
+  const dataExtenso = now.toLocaleDateString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+  const ano = Number(
+    now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }).slice(0, 4)
+  );
+  return { dataExtenso, ano };
+}
+
+export function blocoDataAtual(): string {
+  const { dataExtenso, ano } = dataAtualBr();
+  return `DATA ATUAL (IMPORTANTE — sua base de treino é mais antiga que isso):
+- HOJE é ${dataExtenso}. O ano corrente é ${ano}.
+- Qualquer referência ao ano atual (títulos "guia ${ano}", "melhores de ${ano}", frases como "neste ano") DEVE usar ${ano} — NUNCA ${ano - 1}.
+- NÃO invente lançamentos, modelos ou novidades de ${ano} que você não conhece — o ano é referência temporal, não notícia.
+- EXCEÇÃO: números oficiais de leis/normas mantêm o ano original (Lei Municipal 11.981/2025, CONTRAN 996/2023).`;
+}
+
 export function getCtaIntent(category: string, keyword: string): CtaIntent {
   if (category === "manutencao" || category === "tecnico") return "assistencia";
   const text = keyword.toLowerCase();
@@ -78,6 +103,8 @@ function buildPrompt(topic: BlogTopic): string {
       : `Inclua um link para ${lpLink} de forma natural no conteúdo ou no CTA.`;
 
   return `Você é redator da Patinep Store, loja especializada em micromobilidade elétrica em Maringá, PR, Brasil.
+
+${blocoDataAtual()}
 
 SOBRE A PATINEP STORE:
 - Pioneira em Maringá, 6+ anos no mercado
@@ -129,7 +156,7 @@ REGRAS DE QUALIDADE:
 - Parágrafos curtos (3-4 linhas máximo)
 
 TÍTULO E META DESCRIPTION (CTR no Google — CRÍTICO):
-- Título: keyword (ou variação próxima) no INÍCIO, até ~62 caracteres, com um elemento concreto que ganhe o clique: número, ano ${new Date().getFullYear()}, benefício ou a resposta direta ("7 causas", "guia ${new Date().getFullYear()}", "resolva em casa")
+- Título: keyword (ou variação próxima) no INÍCIO, até ~62 caracteres, com um elemento concreto que ganhe o clique: número, ano ${dataAtualBr().ano}, benefício ou a resposta direta ("7 causas", "guia ${dataAtualBr().ano}", "resolva em casa")
 - meta_description: 150-160 caracteres — entregue a resposta/benefício + um motivo para clicar (detalhe extra que só o post tem). Sem clickbait vazio.
 
 LINKS: ${lpInstruction}
@@ -155,6 +182,8 @@ function buildEnglishTranslationPrompt(ptPost: {
   lp_link: string | null;
 }): string {
   return `You are a professional translator and content writer for Patinep Store, a specialized e-scooter and micro-mobility shop based in Maringá, Brazil.
+
+CURRENT DATE: today is ${new Date().toLocaleDateString("en-US", { timeZone: "America/Sao_Paulo", dateStyle: "long" })}. The current year is ${dataAtualBr().ano} — any "current year" reference must be ${dataAtualBr().ano} (law numbers keep their official year, e.g. Law 11.981/2025).
 
 Translate the following Brazilian Portuguese blog post to English (US). Keep the context Brazilian (Maringá, Brazilian laws, BRL prices) but explain references so international readers understand them.
 

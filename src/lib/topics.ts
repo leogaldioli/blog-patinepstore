@@ -9,7 +9,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin } from "./supabase";
-import { parseGeneratedJson } from "./generate";
+import { parseGeneratedJson, blocoDataAtual } from "./generate";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -38,6 +38,8 @@ type NewTopic = {
 
 function buildTopicsPrompt(existingKeywords: string[], batch: number): string {
   return `Você é o estrategista de SEO do blog da Patinep Store — loja especializada em micromobilidade elétrica (patinetes, scooters e bicicletas elétricas) em Maringá, PR, Brasil. Pioneira na cidade, 6+ anos, +3.000 clientes, nota 4.9 no Google, oficina/assistência técnica própria com peças originais. Marcas: Foston (principal), Bee Green, Panda.
+
+${blocoDataAtual()}
 
 MISSÃO: gerar ${batch} NOVOS tópicos de post para a fila de geração de conteúdo.
 

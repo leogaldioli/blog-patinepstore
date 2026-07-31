@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin, BlogPost } from "@/lib/supabase";
-import { parseGeneratedJson } from "@/lib/generate";
+import { parseGeneratedJson, blocoDataAtual, dataAtualBr } from "@/lib/generate";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -17,8 +17,10 @@ const MAX_SLUGS = 15;
 function buildMetaPrompt(post: BlogPost): string {
   const contentSample = post.content_html.replace(/<[^>]+>/g, " ").slice(0, 1500);
   const lang = post.lang === "en" ? "inglês (US)" : "português brasileiro";
-  const year = new Date().getFullYear();
+  const year = dataAtualBr().ano;
   return `Você é especialista em SEO on-page. Este post tem MUITAS impressões no Google e CTR baixo — o título/meta não estão ganhando o clique. Reescreva os dois. A URL não muda.
+
+${blocoDataAtual()}
 
 Título atual: ${post.title}
 Meta atual: ${post.meta_description}
