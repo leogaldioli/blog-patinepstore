@@ -139,6 +139,14 @@ Dados de mercado verificados (use apenas estes, sem inventar):
 ESCREVA UM POST DE BLOG COMPLETO SOBRE: "${topic.keyword}"
 Sugestão de título: "${topic.title_suggestion}"
 Categoria: ${topic.category}
+${
+  topic.research
+    ? `
+PESQUISA ATUAL (fatos verificados HOJE na web, com fontes — este post é sobre NOVIDADE, então baseie o conteúdo NESTES fatos; você não conhece esses eventos porque são posteriores ao seu treino. NÃO invente nada além do que está aqui; cite as leis/resoluções pelos nomes oficiais abaixo; NÃO inclua as URLs cruas no texto):
+${topic.research}
+`
+    : ""
+}
 
 ESTRUTURA OBRIGATÓRIA:
 1. Introdução (150-200 palavras) — responde diretamente o tema
@@ -149,6 +157,8 @@ ESTRUTURA OBRIGATÓRIA:
 REGRAS DE QUALIDADE:
 - NUNCA invente velocidades, preços, autonomia ou dados técnicos além dos fornecidos acima
 - Se não tiver o dado exato, use faixas ("entre X e Y") ou omita o número
+- NUNCA fale de acidentes, mortes, incêndios, roubos ou tragédias — nem como exemplo
+- NUNCA cite marcas de patinetes/scooters/bikes que a Patinep NÃO vende (concorrentes). Marcas permitidas: Foston, Bee Green, Panda. Outras marcas → fale da categoria/tecnologia sem nomear
 - NUNCA use: "Certamente", "Com certeza", "Ótima pergunta", "Neste artigo", "Vamos explorar"
 - Respostas diretas, sem rodeios, sem enrolação
 - Mencione Maringá quando contextualmente relevante
@@ -225,7 +235,7 @@ DADOS VERIFICADOS (referência oficial):
 - Autonomia real dos modelos de mercado: 20 a 40 km por carga
 - Custo de recarga: R$ 0,10 a R$ 0,30 por carga completa
 
-CONTEÚDO A VERIFICAR:
+{RESEARCH}CONTEÚDO A VERIFICAR:
 {CONTENT}
 
 Identifique afirmações factuais incorretas ou contraditórias com os dados acima.
@@ -239,11 +249,20 @@ ou
 
 async function validatePost(
   content: string,
-  faq: { question: string; answer: string }[]
+  faq: { question: string; answer: string }[],
+  research?: string | null
 ): Promise<{ valid: boolean; issues: string[] }> {
   const faqText = faq.map((f) => `P: ${f.question}\nR: ${f.answer}`).join("\n\n");
   const fullContent = content.replace(/<[^>]+>/g, " ") + "\n\nFAQ:\n" + faqText;
-  const prompt = FACT_CHECK_PROMPT.replace("{CONTENT}", fullContent.slice(0, 5000));
+  // Posts de novidade: os fatos pesquisados hoje também são referência válida
+  // (podem ser mais novos que os dados fixos acima — nesse caso prevalecem)
+  const researchBlock = research
+    ? `DADOS ADICIONAIS PESQUISADOS HOJE (também são referência oficial; se contradizerem os dados acima, ESTES prevalecem por serem mais recentes):\n${research.slice(0, 2000)}\n\n`
+    : "";
+  const prompt = FACT_CHECK_PROMPT.replace("{RESEARCH}", researchBlock).replace(
+    "{CONTENT}",
+    fullContent.slice(0, 5000)
+  );
 
   try {
     const msg = await anthropic.messages.create({
@@ -354,7 +373,7 @@ export async function generatePost(
 
     const finalSlug = await uniqueSlug(slugify(generated.title));
 
-    const validation = await validatePost(generated.content_html, generated.faq);
+    const validation = await validatePost(generated.content_html, generated.faq, topic.research);
     const postStatus = validation.valid ? "published" : "draft";
 
     if (!validation.valid) {

@@ -43,6 +43,7 @@ Pipeline auto-abastecida rodando via cron na VPS (`crontab -l` como root), todos
 
 | Horário (UTC) | Endpoint | Função |
 |---|---|---|
+| 07:00 diário | `/api/cron/news` | Varredura de novidades com web search (legislação, mercado, tendências, curiosidades — nunca acidentes nem marcas concorrentes): cria 0-2 tópicos prioridade 10 com os fatos pesquisados salvos em `blog_topics.research`, que o redator usa como fonte |
 | 07:30 diário | `/api/cron/topics` | Reabastece a fila: destrava `generating`, re-enfileira `error` (retry < 3) e, se pending < 15, gera ~30 tópicos novos com Claude (dedupe contra todos os keywords já usados) |
 | 08:00 diário | `/api/cron/generate?limit=3` | Gera 3 posts PT (Haiku + fact-check) + versão EN de cada |
 | 09:00 diário | `/api/cron/translate` | Rede de segurança: traduz posts PT sem versão EN |

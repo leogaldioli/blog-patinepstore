@@ -58,6 +58,8 @@ MIX DESEJADO NESTE LOTE (aproximado):
 CATEGORIAS VÁLIDAS (use exatamente estes slugs): ${CATEGORIES.join(", ")}
 
 REGRAS:
+- NUNCA proponha tópico sobre acidentes, mortes, incêndios, roubos ou tragédias
+- NUNCA proponha tópico centrado em marca concorrente (Patinep vende Foston, Bee Green e Panda — outras marcas de equipamento não entram)
 - keyword: como alguém digitaria no Google (long-tail, português natural, sem aspas)
 - title_suggestion: título SEO com a keyword no início, até ~62 caracteres, com elemento concreto (número, ano, benefício)
 - priority: 1-10 (10 = maior potencial de tráfego/conversão; manutenção específica e hiperlocal Maringá merecem 8-10)
