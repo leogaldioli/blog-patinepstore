@@ -59,6 +59,24 @@ const REPAIR_HINTS = [
 
 export type CtaIntent = "assistencia" | "venda";
 
+// ── Política de marcas ────────────────────────────────────────────────────
+// Casa: sempre citáveis. Concorrentes (vendem no Brasil): nunca. Estrangeiras
+// SEM operação no Brasil: citáveis (não competem pela venda) — a varredura de
+// notícias verifica com web search e marca no research quais são. Na dúvida,
+// não cita. Lista verificada em ago/2026 — revisar semestralmente.
+export const MARCAS_CASA = "Foston, Bee Green, Panda, Goo Elétricos";
+export const MARCAS_CONCORRENTES_BR =
+  "Xiaomi, Segway, Ninebot, Multilaser, Atrio, Two Dogs, Honey Whale, Polares, Goodyear, DL, Dualtron, Kaabo, Watts, Shineray, Voltz, Super Soco, Aima, Tui, GTS, NIU, Caloi, Sense, Oggi";
+
+export function regrasDeMarcas(temResearch: boolean): string {
+  return `- NUNCA cite marcas concorrentes que vendem no Brasil (e variações delas): ${MARCAS_CONCORRENTES_BR}. Marcas da casa sempre OK: ${MARCAS_CASA}.
+- Marcas estrangeiras SEM operação no Brasil podem ser citadas como referência de tendência/tecnologia${
+    temResearch
+      ? ' — mas SOMENTE as listadas como "citáveis" na PESQUISA ATUAL abaixo'
+      : ", mas só se você tiver certeza de que a marca não vende no Brasil; na dúvida, fale da categoria/tecnologia sem nomear"
+  }.`;
+}
+
 /** Data atual em SP — os modelos assumem o ano do treinamento deles se o
  *  prompt não disser a data (post saiu com "guia 2025" em jul/2026). */
 export function dataAtualBr(): { dataExtenso: string; ano: number } {
@@ -158,7 +176,7 @@ REGRAS DE QUALIDADE:
 - NUNCA invente velocidades, preços, autonomia ou dados técnicos além dos fornecidos acima
 - Se não tiver o dado exato, use faixas ("entre X e Y") ou omita o número
 - NUNCA fale de acidentes, mortes, incêndios, roubos ou tragédias — nem como exemplo
-- NUNCA cite marcas de patinetes/scooters/bikes que a Patinep NÃO vende (concorrentes). Marcas permitidas: Foston, Bee Green, Panda, Goo Elétricos. Outras marcas → fale da categoria/tecnologia sem nomear
+${regrasDeMarcas(Boolean(topic.research))}
 - NUNCA use: "Certamente", "Com certeza", "Ótima pergunta", "Neste artigo", "Vamos explorar"
 - Respostas diretas, sem rodeios, sem enrolação
 - Mencione Maringá quando contextualmente relevante

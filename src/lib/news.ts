@@ -15,7 +15,12 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin } from "./supabase";
-import { parseGeneratedJson, blocoDataAtual } from "./generate";
+import {
+  parseGeneratedJson,
+  blocoDataAtual,
+  MARCAS_CASA,
+  MARCAS_CONCORRENTES_BR,
+} from "./generate";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -49,7 +54,11 @@ MISSÃO: pesquisar na web (use a ferramenta de busca) o que há de GENUINAMENTE 
 
 REGRAS EDITORIAIS INEGOCIÁVEIS:
 - NUNCA proponha tópico sobre acidentes, mortes, incêndios, roubos ou qualquer tragédia — mesmo que seja a notícia mais quente. Blog da loja = tom positivo e útil.
-- NUNCA cite marcas de patinetes/scooters/bikes que a Patinep NÃO vende (marcas da casa: Foston, Bee Green, Panda, Goo Elétricos; qualquer outra — generalize para a categoria/tecnologia ou descarte)
+- POLÍTICA DE MARCAS:
+  · Marcas da casa (sempre OK): ${MARCAS_CASA}
+  · Marcas CONCORRENTES que vendem no Brasil (NUNCA citar): ${MARCAS_CONCORRENTES_BR} — se a notícia gira em torno de uma delas, generalize para a categoria/tecnologia ou descarte
+  · Marcas ESTRANGEIRAS sem operação no Brasil PODEM ser citadas (dão substância a matérias de tendência global). Antes de citar uma, VERIFIQUE com uma busca (ex.: "comprar [marca] Brasil") se ela realmente não vende no Brasil — sem loja oficial, distribuidor ou importador estabelecido. Na dúvida, não cite.
+  · No campo "research", liste explicitamente: MARCAS CITÁVEIS NESTE POST: [marca] ([país], sem operação no Brasil — verificado). O redator só pode citar as marcas dessa lista.
 - Só proponha o que for RELEVANTE para quem tem ou quer ter um patinete/scooter no Brasil — notícia corporativa de empresa estrangeira sem efeito prático aqui não interessa
 - Se depois de pesquisar você não encontrar nada genuinamente novo/relevante, retorne {"topics": []} — isso é uma resposta correta, não uma falha
 

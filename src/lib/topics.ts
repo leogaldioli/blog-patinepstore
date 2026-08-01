@@ -59,7 +59,7 @@ CATEGORIAS VÁLIDAS (use exatamente estes slugs): ${CATEGORIES.join(", ")}
 
 REGRAS:
 - NUNCA proponha tópico sobre acidentes, mortes, incêndios, roubos ou tragédias
-- NUNCA proponha tópico centrado em marca concorrente (Patinep vende Foston, Bee Green, Panda e Goo Elétricos — outras marcas de equipamento não entram)
+- NUNCA proponha tópico centrado em marca concorrente que vende no Brasil (Xiaomi, Segway, Multilaser, Two Dogs, Watts, Shineray etc.) — marcas da casa são Foston, Bee Green, Panda e Goo Elétricos
 - keyword: como alguém digitaria no Google (long-tail, português natural, sem aspas)
 - title_suggestion: título SEO com a keyword no início, até ~62 caracteres, com elemento concreto (número, ano, benefício)
 - priority: 1-10 (10 = maior potencial de tráfego/conversão; manutenção específica e hiperlocal Maringá merecem 8-10)
