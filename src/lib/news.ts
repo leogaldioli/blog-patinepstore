@@ -5,9 +5,10 @@
 // a partir desses fatos, não da memória dele.
 //
 // Regras editoriais fixas: NUNCA acidentes/mortes/roubos; NUNCA marcas
-// concorrentes (Patinep vende Foston, Bee Green e Panda — outras marcas de
-// equipamento não são citadas). Se não houver nada genuinamente novo e
-// relevante, retorna lista vazia — dia sem novidade não vira post forçado.
+// concorrentes (Patinep vende Foston, Bee Green, Panda e Goo Elétricos —
+// outras marcas de equipamento não são citadas). Se não houver nada
+// genuinamente novo e relevante, retorna lista vazia — dia sem novidade
+// não vira post forçado.
 //
 // Chamado por /api/cron/news (07:00 UTC, antes do refill e da geração — o
 // tópico criado hoje vira post hoje às 08:00, ainda fresco).
@@ -35,7 +36,7 @@ const CATEGORIES = [
 ] as const;
 
 function buildNewsPrompt(existingKeywords: string[]): string {
-  return `Você é o editor de novidades do blog da Patinep Store — loja de micromobilidade elétrica (patinetes, scooters, bicicletas elétricas) em Maringá, PR, Brasil, com oficina própria. Marcas vendidas: Foston, Bee Green, Panda.
+  return `Você é o editor de novidades do blog da Patinep Store — loja de micromobilidade elétrica (patinetes, scooters, bicicletas elétricas) em Maringá, PR, Brasil, com oficina própria. Marcas vendidas: Foston, Bee Green, Panda, Goo Elétricos.
 
 ${blocoDataAtual()}
 
@@ -48,7 +49,7 @@ MISSÃO: pesquisar na web (use a ferramenta de busca) o que há de GENUINAMENTE 
 
 REGRAS EDITORIAIS INEGOCIÁVEIS:
 - NUNCA proponha tópico sobre acidentes, mortes, incêndios, roubos ou qualquer tragédia — mesmo que seja a notícia mais quente. Blog da loja = tom positivo e útil.
-- NUNCA cite marcas de patinetes/scooters/bikes que a Patinep NÃO vende (nada de marcas concorrentes — se a notícia é sobre uma marca específica, generalize para a categoria/tecnologia ou descarte)
+- NUNCA cite marcas de patinetes/scooters/bikes que a Patinep NÃO vende (marcas da casa: Foston, Bee Green, Panda, Goo Elétricos; qualquer outra — generalize para a categoria/tecnologia ou descarte)
 - Só proponha o que for RELEVANTE para quem tem ou quer ter um patinete/scooter no Brasil — notícia corporativa de empresa estrangeira sem efeito prático aqui não interessa
 - Se depois de pesquisar você não encontrar nada genuinamente novo/relevante, retorne {"topics": []} — isso é uma resposta correta, não uma falha
 

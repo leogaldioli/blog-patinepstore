@@ -37,7 +37,7 @@ type NewTopic = {
 };
 
 function buildTopicsPrompt(existingKeywords: string[], batch: number): string {
-  return `Você é o estrategista de SEO do blog da Patinep Store — loja especializada em micromobilidade elétrica (patinetes, scooters e bicicletas elétricas) em Maringá, PR, Brasil. Pioneira na cidade, 6+ anos, +3.000 clientes, nota 4.9 no Google, oficina/assistência técnica própria com peças originais. Marcas: Foston (principal), Bee Green, Panda.
+  return `Você é o estrategista de SEO do blog da Patinep Store — loja especializada em micromobilidade elétrica (patinetes, scooters e bicicletas elétricas) em Maringá, PR, Brasil. Pioneira na cidade, 6+ anos, +3.000 clientes, nota 4.9 no Google, oficina/assistência técnica própria com peças originais. Marcas: Foston (principal), Bee Green, Panda, Goo Elétricos.
 
 ${blocoDataAtual()}
 
@@ -51,7 +51,7 @@ DADOS DE PERFORMANCE (Google Search Console, últimos 90 dias — use para guiar
 
 MIX DESEJADO NESTE LOTE (aproximado):
 - ~40% manutencao + tecnico + faq (dor de quem já tem o equipamento; priorize sintomas/problemas específicos ainda não cobertos)
-- ~20% guia-de-compra (comparativos, modelos Foston/Bee Green, faixas de preço)
+- ~20% guia-de-compra (comparativos, modelos Foston/Bee Green/Goo Elétricos, faixas de preço)
 - ~15% hiperlocal (Maringá, Sarandi, Paiçandu, Londrina, Cianorte, Campo Mourão, Umuarama, Paraná)
 - ~25% distribuído entre regulamentacao, economia, seguranca, delivery, lifestyle
 
@@ -59,7 +59,7 @@ CATEGORIAS VÁLIDAS (use exatamente estes slugs): ${CATEGORIES.join(", ")}
 
 REGRAS:
 - NUNCA proponha tópico sobre acidentes, mortes, incêndios, roubos ou tragédias
-- NUNCA proponha tópico centrado em marca concorrente (Patinep vende Foston, Bee Green e Panda — outras marcas de equipamento não entram)
+- NUNCA proponha tópico centrado em marca concorrente (Patinep vende Foston, Bee Green, Panda e Goo Elétricos — outras marcas de equipamento não entram)
 - keyword: como alguém digitaria no Google (long-tail, português natural, sem aspas)
 - title_suggestion: título SEO com a keyword no início, até ~62 caracteres, com elemento concreto (número, ano, benefício)
 - priority: 1-10 (10 = maior potencial de tráfego/conversão; manutenção específica e hiperlocal Maringá merecem 8-10)
