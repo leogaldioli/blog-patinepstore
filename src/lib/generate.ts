@@ -66,7 +66,7 @@ export type CtaIntent = "assistencia" | "venda";
 // não cita. Lista verificada em ago/2026 — revisar semestralmente.
 export const MARCAS_CASA = "Foston, Bee Green, Panda, Goo Elétricos";
 export const MARCAS_CONCORRENTES_BR =
-  "Xiaomi, Segway, Ninebot, Multilaser, Atrio, Two Dogs, Honey Whale, Polares, Goodyear, DL, Dualtron, Kaabo, Watts, Shineray, Voltz, Super Soco, Aima, Tui, GTS, NIU, Caloi, Sense, Oggi";
+  "Xiaomi, Segway, Ninebot, Multilaser, Atrio, Two Dogs, Honey Whale, Polares, Goodyear, DL, Dualtron, Kaabo, Watts, Shineray, Voltz, Super Soco, Aima, Tui, GTS, NIU, Caloi, Sense, Oggi, Motochefe, Scooter Club, Ecospeed";
 
 export function regrasDeMarcas(temResearch: boolean): string {
   return `- NUNCA cite marcas concorrentes que vendem no Brasil (e variações delas): ${MARCAS_CONCORRENTES_BR}. Marcas da casa sempre OK: ${MARCAS_CASA}.
