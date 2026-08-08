@@ -18,8 +18,9 @@ HEALTH_URL="https://blog.patinepstore.com.br"
 cd "$(dirname "$0")/.."
 
 echo "🔑 Puxando NEXT_PUBLIC_* do .env.production da VPS..."
-eval "$(ssh "${VPS_USER}@${VPS_HOST}" "grep -E '^NEXT_PUBLIC_(SUPABASE_URL|SUPABASE_ANON_KEY|BASE_URL)=' ${DEPLOY_PATH}/.env.production" | sed 's/^/export /')"
+eval "$(ssh "${VPS_USER}@${VPS_HOST}" "grep -E '^NEXT_PUBLIC_(SUPABASE_URL|SUPABASE_ANON_KEY|BASE_URL|POSTHOG_PROJECT_TOKEN)=' ${DEPLOY_PATH}/.env.production" | sed 's/^/export /')"
 : "${NEXT_PUBLIC_SUPABASE_URL:?não encontrada no .env.production da VPS}"
+: "${NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN:?não encontrada no .env.production da VPS}"
 
 echo "🏗  Build local do Next.js..."
 npm run build

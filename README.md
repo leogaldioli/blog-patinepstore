@@ -1,5 +1,15 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Analytics
+
+GTM/GA4 continuam medindo aquisição. O PostHog acrescenta web analytics, heatmaps e
+o evento explícito `cta_click`, sempre com `app=patinep_blog`. A coleta é cookieless,
+sem perfis anônimos e sem session replay. Query strings não são enviadas.
+
+Configure `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` no `.env.production` da VPS. O deploy
+busca essa variável antes do build local, porque valores `NEXT_PUBLIC_*` são
+incorporados ao bundle. O ingest passa pelo proxy first-party `/memento`.
+
 ## Getting Started
 
 First, run the development server:

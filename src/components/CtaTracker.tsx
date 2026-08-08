@@ -18,6 +18,12 @@ export default function CtaTracker({ slug }: { slug: string }) {
           link_url: el.href,
           link_text: (el.textContent || '').trim()
         });
+        if (window.posthog) {
+          window.posthog.capture('cta_click', {
+            campaign: slug,
+            location: window.location.pathname
+          });
+        }
       });
     }
   }
