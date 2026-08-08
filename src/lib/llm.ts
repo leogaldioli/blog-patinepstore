@@ -101,7 +101,21 @@ export async function createOpenRouterCompletion(opts: {
         response_format: { type: "json_object" },
         reasoning: { effort: "low", exclude: true },
         provider: { require_parameters: true },
-        ...(opts.webSearch ? { plugins: [{ id: "web", max_results: 8 }] } : {}),
+        ...(opts.webSearch
+          ? {
+              tools: [
+                {
+                  type: "openrouter:web_search",
+                  parameters: {
+                    engine: "exa",
+                    max_results: 8,
+                    max_total_results: 8,
+                    search_context_size: "medium",
+                  },
+                },
+              ],
+            }
+          : {}),
       }),
       signal: AbortSignal.timeout(180_000),
     });
