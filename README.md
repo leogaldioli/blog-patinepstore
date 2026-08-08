@@ -41,11 +41,26 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 Pipeline auto-abastecida rodando via cron na VPS (`crontab -l` como root), todos os endpoints protegidos por `?secret=$CRON_SECRET`:
 
+### Provedores de IA
+
+A esteira tenta a Anthropic primeiro e usa o DeepSeek V4 Pro via OpenRouter
+quando a chamada principal falha. Configure as variáveis abaixo no
+`.env.production` da VPS (nunca salve a chave no Git):
+
+```dotenv
+ANTHROPIC_API_KEY=...
+OPENROUTER_API_KEY=...
+OPENROUTER_MODEL=deepseek/deepseek-v4-pro
+```
+
+`OPENROUTER_MODEL` é opcional. Os resultados dos crons e as notificações de
+posts no Telegram informam o modelo efetivamente usado em PT e EN.
+
 | Horário (UTC) | Endpoint | Função |
 |---|---|---|
 | 07:00 diário | `/api/cron/news` | Varredura de novidades com web search (legislação, mercado, tendências, curiosidades — nunca acidentes nem marcas concorrentes): cria 0-2 tópicos prioridade 10 com os fatos pesquisados salvos em `blog_topics.research`, que o redator usa como fonte |
 | 07:30 diário | `/api/cron/topics` | Reabastece a fila: destrava `generating`, re-enfileira `error` (retry < 3) e, se pending < 15, gera ~30 tópicos novos com Claude (dedupe contra todos os keywords já usados) |
-| 08:00 diário | `/api/cron/generate?limit=3` | Gera 3 posts PT (Haiku + fact-check) + versão EN de cada |
+| 08:00 diário | `/api/cron/generate?limit=2` | Gera 2 posts PT (Claude com fallback DeepSeek V4 Pro + fact-check) + versão EN de cada |
 | 09:00 diário | `/api/cron/translate` | Rede de segurança: traduz posts PT sem versão EN |
 
 Sob demanda:

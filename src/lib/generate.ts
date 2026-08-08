@@ -1,6 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { slugify } from "./slugify";
 import { supabaseAdmin, BlogTopic, BlogPost } from "./supabase";
+import { normalizeAnthropicError } from "./anthropic-errors";
+import {
+  createTextCompletion,
+  providerCreditsErrorCode,
+  type ProviderCreditsErrorCode,
+} from "./llm";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -283,13 +289,13 @@ async function validatePost(
   );
 
   try {
-    const msg = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 256,
-      messages: [{ role: "user", content: prompt }],
+    const completion = await createTextCompletion(anthropic, {
+      anthropicModel: "claude-haiku-4-5-20251001",
+      maxTokens: 256,
+      prompt,
     });
 
-    const raw = msg.content[0].type === "text" ? msg.content[0].text : "{}";
+    const raw = completion.text;
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return { valid: true, issues: [] };
     const result = JSON.parse(jsonMatch[0]);
@@ -297,7 +303,10 @@ async function validatePost(
       valid: result.valid !== false,
       issues: Array.isArray(result.issues) ? result.issues : [],
     };
-  } catch {
+  } catch (err) {
+    // Falta de saldo não é falha editorial: interrompa o lote sem publicar
+    // conteúdo que não passou pela validação e sem gastar novas tentativas.
+    if (providerCreditsErrorCode(err)) throw normalizeAnthropicError(err);
     return { valid: true, issues: [] };
   }
 }
@@ -362,7 +371,17 @@ export function parseGeneratedJson(rawText: string): any {
 
 export async function generatePost(
   topic: BlogTopic
-): Promise<{ success: boolean; slug?: string; title?: string; enSlug?: string; error?: string; warning?: string }> {
+): Promise<{
+  success: boolean;
+  slug?: string;
+  title?: string;
+  enSlug?: string;
+  model?: string;
+  enModel?: string;
+  error?: string;
+  errorCode?: ProviderCreditsErrorCode;
+  warning?: string;
+}> {
   try {
     await supabaseAdmin
       .from("blog_topics")
@@ -371,20 +390,20 @@ export async function generatePost(
 
     // ── Generate PT post ──
     // 8192: com 4096 posts completos vinham truncados (JSON inválido)
-    const message = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 8192,
-      messages: [{ role: "user", content: buildPrompt(topic) }],
+    const completion = await createTextCompletion(anthropic, {
+      anthropicModel: "claude-haiku-4-5-20251001",
+      maxTokens: 8192,
+      prompt: buildPrompt(topic),
     });
-    if (message.stop_reason === "max_tokens") {
+    if (["max_tokens", "length"].includes(completion.finishReason || "")) {
       throw new Error("Resposta truncada (max_tokens) — post longo demais");
     }
 
-    const rawText = message.content[0].type === "text" ? message.content[0].text : "";
+    const rawText = completion.text;
     let generated: GeneratedPost;
     try {
       generated = parseGeneratedJson(rawText);
-    } catch (e) {
+    } catch {
       console.error("[generate] JSON inválido PT:", rawText.slice(0, 200));
       throw new Error(`JSON inválido: ${rawText.slice(0, 200)}`);
     }
@@ -423,8 +442,9 @@ export async function generatePost(
 
     // ── Generate EN version ──
     let enSlug: string | undefined;
+    let enModel: string | undefined;
     try {
-      enSlug = await generateEnglishVersion({
+      const english = await generateEnglishVersion({
         title: generated.title,
         meta_description: generated.meta_description,
         content_html: generated.content_html,
@@ -435,6 +455,8 @@ export async function generatePost(
         category: topic.category,
         original_slug: finalSlug,
       });
+      enSlug = english.slug;
+      enModel = english.model;
     } catch (enErr) {
       console.error("[generate] EN version failed for", finalSlug, ":", enErr);
     }
@@ -444,16 +466,27 @@ export async function generatePost(
       slug: finalSlug,
       title: generated.title,
       enSlug,
+      model: completion.modelLabel,
+      enModel,
       ...(validation.valid ? {} : { warning: `Draft — revisar: ${validation.issues.join("; ")}` }),
     };
   } catch (err) {
+    const creditsErrorCode = providerCreditsErrorCode(err);
     await supabaseAdmin
       .from("blog_topics")
-      .update({ status: "error", retry_count: (topic.retry_count ?? 0) + 1 })
+      .update(
+        creditsErrorCode
+          ? { status: "pending" }
+          : { status: "error", retry_count: (topic.retry_count ?? 0) + 1 }
+      )
       .eq("id", topic.id);
 
-    const message = err instanceof Error ? err.message : JSON.stringify(err);
-    return { success: false, error: message };
+    const normalized = normalizeAnthropicError(err);
+    return {
+      success: false,
+      error: normalized.message,
+      ...(creditsErrorCode ? { errorCode: creditsErrorCode } : {}),
+    };
   }
 }
 
@@ -467,19 +500,21 @@ async function generateEnglishVersion(opts: {
   topic_id: string;
   category: string;
   original_slug: string;
-}): Promise<string> {
+}): Promise<{ slug: string; model: string }> {
   const prompt = buildEnglishTranslationPrompt(opts);
 
-  const message = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 8192,
-    messages: [{ role: "user", content: prompt }],
+  const completion = await createTextCompletion(anthropic, {
+    anthropicModel: "claude-haiku-4-5-20251001",
+    // DeepSeek pode gastar parte da janela em raciocínio mesmo no modo low;
+    // deixe folga para o HTML traduzido completo.
+    maxTokens: 12000,
+    prompt,
   });
-  if (message.stop_reason === "max_tokens") {
+  if (["max_tokens", "length"].includes(completion.finishReason || "")) {
     throw new Error("Tradução truncada (max_tokens)");
   }
 
-  const rawText = message.content[0].type === "text" ? message.content[0].text : "";
+  const rawText = completion.text;
   const generated = parseGeneratedJson(rawText);
 
   const enSlug = await uniqueSlug(slugify(generated.title));
@@ -501,13 +536,19 @@ async function generateEnglishVersion(opts: {
   });
 
   if (error) throw toError(error);
-  return enSlug;
+  return { slug: enSlug, model: completion.modelLabel };
 }
 
 /** Translate a single published PT post to English. */
 export async function translatePostToEnglish(
   ptPost: BlogPost
-): Promise<{ success: boolean; slug?: string; error?: string }> {
+): Promise<{
+  success: boolean;
+  slug?: string;
+  model?: string;
+  error?: string;
+  errorCode?: ProviderCreditsErrorCode;
+}> {
   try {
     // Check if EN version already exists
     const { data: existing } = await supabaseAdmin
@@ -521,7 +562,7 @@ export async function translatePostToEnglish(
       return { success: true, slug: existing.slug };
     }
 
-    const enSlug = await generateEnglishVersion({
+    const english = await generateEnglishVersion({
       title: ptPost.title,
       meta_description: ptPost.meta_description,
       content_html: ptPost.content_html,
@@ -533,11 +574,18 @@ export async function translatePostToEnglish(
       original_slug: ptPost.slug,
     });
 
-    return { success: true, slug: enSlug };
+    return { success: true, slug: english.slug, model: english.model };
   } catch (err) {
-    const message = toError(err).message;
+    const normalized = normalizeAnthropicError(err);
+    const message = normalized.message;
     console.error("[translate] Failed for", ptPost.slug, ":", message);
-    return { success: false, error: message };
+    return {
+      success: false,
+      error: message,
+      ...(providerCreditsErrorCode(normalized)
+        ? { errorCode: providerCreditsErrorCode(normalized) }
+        : {}),
+    };
   }
 }
 

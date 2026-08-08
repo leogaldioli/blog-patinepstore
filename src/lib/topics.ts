@@ -10,6 +10,12 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin } from "./supabase";
 import { parseGeneratedJson, blocoDataAtual } from "./generate";
+import { isAnthropicCreditsError, normalizeAnthropicError } from "./anthropic-errors";
+import {
+  createOpenRouterCompletion,
+  isOpenRouterConfigured,
+  modelDisplayName,
+} from "./llm";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -74,7 +80,9 @@ RETORNE APENAS JSON VÁLIDO (sem markdown):
 }
 
 /** Chama Claude com fallback de modelo (pipeline roda sozinha na VPS). */
-async function createWithFallback(prompt: string): Promise<string> {
+async function createWithFallback(
+  prompt: string
+): Promise<{ text: string; model: string }> {
   const models = ["claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5-20251001"];
   let lastErr: unknown;
   for (const model of models) {
@@ -89,13 +97,25 @@ async function createWithFallback(prompt: string): Promise<string> {
         throw new Error(`resposta sem texto (stop_reason=${msg.stop_reason})`);
       }
       console.log(`[topics] tópicos gerados com ${model}`);
-      return text.text;
+      return { text: text.text, model: modelDisplayName(msg.model, "anthropic") };
     } catch (err) {
       lastErr = err;
+      // Trocar de modelo não resolve falta de saldo, pois todos usam a mesma
+      // conta Anthropic. Evita mais duas chamadas destinadas a falhar.
+      if (isAnthropicCreditsError(err)) break;
       console.warn(`[topics] modelo ${model} falhou, tentando próximo:`, err);
     }
   }
-  throw lastErr;
+
+  if (isOpenRouterConfigured()) {
+    const fallback = await createOpenRouterCompletion({
+      prompt,
+      maxTokens: 16000,
+    });
+    console.log(`[topics] fallback usado: ${fallback.modelLabel}`);
+    return { text: fallback.text, model: fallback.modelLabel };
+  }
+  throw normalizeAnthropicError(lastErr);
 }
 
 function normalizeKeyword(k: string): string {
@@ -108,6 +128,7 @@ function normalizeKeyword(k: string): string {
 }
 
 export type RefillSummary = {
+  model_used: string | null;
   unstuck: number;
   retried: number;
   pending_before: number;
@@ -154,6 +175,7 @@ export async function refillTopics(force = false): Promise<RefillSummary> {
   const pendingBefore = count ?? 0;
 
   const summary: RefillSummary = {
+    model_used: null,
     unstuck: stuckIds.length,
     retried: retriable.length,
     pending_before: pendingBefore,
@@ -170,8 +192,9 @@ export async function refillTopics(force = false): Promise<RefillSummary> {
   const existing = ((all as { keyword: string }[] | null) || []).map((t) => t.keyword);
   const existingSet = new Set(existing.map(normalizeKeyword));
 
-  const raw = await createWithFallback(buildTopicsPrompt(existing, BATCH_SIZE));
-  const parsed = parseGeneratedJson(raw);
+  const generation = await createWithFallback(buildTopicsPrompt(existing, BATCH_SIZE));
+  summary.model_used = generation.model;
+  const parsed = parseGeneratedJson(generation.text);
   const topics: NewTopic[] = Array.isArray(parsed?.topics) ? parsed.topics : [];
   summary.generated = topics.length;
 

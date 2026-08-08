@@ -21,6 +21,12 @@ import {
   MARCAS_CASA,
   MARCAS_CONCORRENTES_BR,
 } from "./generate";
+import { isAnthropicCreditsError, normalizeAnthropicError } from "./anthropic-errors";
+import {
+  createOpenRouterCompletion,
+  isOpenRouterConfigured,
+  modelDisplayName,
+} from "./llm";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -137,16 +143,30 @@ export async function sweepNews(): Promise<NewsSummary> {
   // Opus → Sonnet (ambos suportam web_search_20260209); sem novidade ≠ erro
   let raw: string | null = null;
   let modelUsed: string | null = null;
+  let lastErr: unknown;
   for (const model of ["claude-opus-5", "claude-sonnet-5"]) {
     try {
       raw = await runWithWebSearch(prompt, model);
-      modelUsed = model;
+      modelUsed = modelDisplayName(model, "anthropic");
       break;
     } catch (err) {
+      lastErr = err;
+      // Opus e Sonnet compartilham o mesmo saldo; não tente outro modelo
+      // quando o bloqueio é financeiro.
+      if (isAnthropicCreditsError(err)) break;
       console.warn(`[news] ${model} falhou:`, err instanceof Error ? err.message : err);
     }
   }
-  if (raw === null) throw new Error("Varredura de notícias falhou em todos os modelos");
+  if (raw === null && isOpenRouterConfigured()) {
+    const fallback = await createOpenRouterCompletion({
+      prompt,
+      maxTokens: 16000,
+      webSearch: true,
+    });
+    raw = fallback.text;
+    modelUsed = fallback.modelLabel;
+  }
+  if (raw === null) throw normalizeAnthropicError(lastErr);
 
   const parsed = parseGeneratedJson(raw);
   const topics: {
