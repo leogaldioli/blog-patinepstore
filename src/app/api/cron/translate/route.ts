@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { translatePostToEnglish, getPendingTranslations } from "@/lib/generate";
+import type { ProviderCreditsErrorCode } from "@/lib/llm";
 
 const POSTS_PER_RUN = 5;
 
@@ -27,11 +28,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ message: "Nenhum post pendente de tradução", translated: 0 });
   }
 
-  const summary: { slug: string; success: boolean; enSlug?: string; error?: string }[] = [];
+  const summary: {
+    slug: string;
+    success: boolean;
+    enSlug?: string;
+    model?: string;
+    error?: string;
+    errorCode?: ProviderCreditsErrorCode;
+  }[] = [];
+  let blockedProvider: ProviderCreditsErrorCode | undefined;
 
   for (const post of posts) {
     const result = await translatePostToEnglish(post);
     summary.push({ slug: post.slug, ...result });
+    if (result.errorCode) {
+      blockedProvider = result.errorCode;
+      break;
+    }
     if (summary.length < posts.length) {
       await new Promise((r) => setTimeout(r, 8000));
     }
@@ -42,9 +55,15 @@ export async function GET(req: NextRequest) {
 
   console.log(`[cron/translate] ${succeeded} traduzidos, ${failed} erros`);
 
-  return NextResponse.json({
-    translated: succeeded,
-    failed,
-    results: summary,
-  });
+  return NextResponse.json(
+    {
+      translated: succeeded,
+      failed,
+      deferred: blockedProvider ? posts.length - succeeded : 0,
+      provider_blocked: Boolean(blockedProvider),
+      blocked_provider: blockedProvider || null,
+      results: summary,
+    },
+    { status: blockedProvider ? 503 : 200 }
+  );
 }

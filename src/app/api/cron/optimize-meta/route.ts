@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin, BlogPost } from "@/lib/supabase";
 import { parseGeneratedJson, blocoDataAtual, dataAtualBr } from "@/lib/generate";
+import { createTextCompletion } from "@/lib/llm";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -61,6 +62,7 @@ export async function GET(req: NextRequest) {
     success: boolean;
     before?: { title: string; meta: string };
     after?: { title: string; meta: string };
+    model?: string;
     error?: string;
   }[] = [];
 
@@ -75,16 +77,12 @@ export async function GET(req: NextRequest) {
       const post = data as BlogPost | null;
       if (!post) throw new Error("post não encontrado");
 
-      const msg = await anthropic.messages.create({
-        model: "claude-opus-5",
-        max_tokens: 4000,
-        messages: [{ role: "user", content: buildMetaPrompt(post) }],
+      const completion = await createTextCompletion(anthropic, {
+        anthropicModel: "claude-opus-5",
+        maxTokens: 4000,
+        prompt: buildMetaPrompt(post),
       });
-      const textBlock = msg.content.find((b) => b.type === "text");
-      if (msg.stop_reason === "refusal" || !textBlock || !("text" in textBlock)) {
-        throw new Error(`resposta sem texto (stop_reason=${msg.stop_reason})`);
-      }
-      const parsed = parseGeneratedJson(textBlock.text);
+      const parsed = parseGeneratedJson(completion.text);
       if (!parsed?.title || !parsed?.meta_description) {
         throw new Error("JSON sem title/meta_description");
       }
@@ -100,6 +98,7 @@ export async function GET(req: NextRequest) {
         success: true,
         before: { title: post.title, meta: post.meta_description },
         after: { title: parsed.title, meta: parsed.meta_description },
+        model: completion.modelLabel,
       });
     } catch (err) {
       const detail = err instanceof Error ? err.message : JSON.stringify(err);

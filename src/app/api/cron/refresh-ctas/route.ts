@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin, BlogPost } from "@/lib/supabase";
 import { parseGeneratedJson, whatsappCtaLink } from "@/lib/generate";
+import { createTextCompletion } from "@/lib/llm";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -69,17 +70,23 @@ export async function GET(req: NextRequest) {
   const pendingPosts = all.filter((p) => !(p.cta_html || "").includes("wa.me"));
   const batch = pendingPosts.slice(0, limit);
 
-  const results: { slug: string; lang: string; success: boolean; error?: string }[] = [];
+  const results: {
+    slug: string;
+    lang: string;
+    success: boolean;
+    model?: string;
+    error?: string;
+  }[] = [];
 
   for (const post of batch) {
     const waLink = whatsappCtaLink(post.title.slice(0, 80), post.lang === "en" ? "en" : "pt");
     try {
-      const msg = await anthropic.messages.create({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 1024,
-        messages: [{ role: "user", content: buildCtaPrompt(post, waLink) }],
+      const completion = await createTextCompletion(anthropic, {
+        anthropicModel: "claude-haiku-4-5-20251001",
+        maxTokens: 1024,
+        prompt: buildCtaPrompt(post, waLink),
       });
-      const rawText = msg.content[0].type === "text" ? msg.content[0].text : "";
+      const rawText = completion.text;
       const parsed = parseGeneratedJson(rawText);
       if (!parsed?.cta_html || !String(parsed.cta_html).includes("wa.me")) {
         throw new Error("CTA gerado sem link wa.me");
@@ -89,7 +96,12 @@ export async function GET(req: NextRequest) {
         .update({ cta_html: parsed.cta_html, lp_link: waLink })
         .eq("id", post.id);
       if (upErr) throw new Error(upErr.message);
-      results.push({ slug: post.slug, lang: post.lang, success: true });
+      results.push({
+        slug: post.slug,
+        lang: post.lang,
+        success: true,
+        model: completion.modelLabel,
+      });
     } catch (err) {
       const detail = err instanceof Error ? err.message : JSON.stringify(err);
       console.error(`[refresh-ctas] falha em ${post.slug}:`, detail);
