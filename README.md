@@ -43,24 +43,27 @@ Pipeline auto-abastecida rodando via cron na VPS (`crontab -l` como root), todos
 
 ### Provedores de IA
 
-A esteira tenta a Anthropic primeiro e usa o DeepSeek V4 Pro via OpenRouter
-quando a chamada principal falha. Configure as variáveis abaixo no
+A esteira tenta a Anthropic primeiro e percorre uma cadeia de fallback no
+OpenRouter quando a chamada principal falha: DeepSeek V4 Flash 0731, GPT-5.6
+Luna e DeepSeek V4 Pro, nessa ordem. Configure as variáveis abaixo no
 `.env.production` da VPS (nunca salve a chave no Git):
 
 ```dotenv
 ANTHROPIC_API_KEY=...
 OPENROUTER_API_KEY=...
-OPENROUTER_MODEL=deepseek/deepseek-v4-pro
+OPENROUTER_MODELS=deepseek/deepseek-v4-flash-0731,openai/gpt-5.6-luna,deepseek/deepseek-v4-pro
 ```
 
-`OPENROUTER_MODEL` é opcional. Os resultados dos crons e as notificações de
-posts no Telegram informam o modelo efetivamente usado em PT e EN.
+`OPENROUTER_MODELS` é opcional e aceita IDs separados por vírgula em ordem de
+prioridade. `OPENROUTER_MODEL` continua aceito como configuração legada e entra
+na primeira posição. Os resultados dos crons e as notificações de posts no
+Telegram informam o modelo efetivamente usado em PT e EN.
 
 | Horário (UTC) | Endpoint | Função |
 |---|---|---|
 | 07:00 diário | `/api/cron/news` | Varredura de novidades com web search (legislação, mercado, tendências, curiosidades — nunca acidentes nem marcas concorrentes): cria 0-2 tópicos prioridade 10 com os fatos pesquisados salvos em `blog_topics.research`, que o redator usa como fonte |
 | 07:30 diário | `/api/cron/topics` | Reabastece a fila: destrava `generating`, re-enfileira `error` (retry < 3) e, se pending < 15, gera ~30 tópicos novos com Claude (dedupe contra todos os keywords já usados) |
-| 08:00 diário | `/api/cron/generate?limit=2` | Gera 2 posts PT (Claude com fallback DeepSeek V4 Pro + fact-check) + versão EN de cada |
+| 08:00 diário | `/api/cron/generate?limit=2` | Gera 2 posts PT (Claude com cadeia OpenRouter + fact-check) + versão EN de cada |
 | 09:00 diário | `/api/cron/translate` | Rede de segurança: traduz posts PT sem versão EN |
 
 Sob demanda:

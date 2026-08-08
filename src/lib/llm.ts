@@ -19,8 +19,33 @@ export class OpenRouterCreditsError extends Error {
   }
 }
 
-export const OPENROUTER_FALLBACK_MODEL =
-  process.env.OPENROUTER_MODEL || "deepseek/deepseek-v4-pro";
+const DEFAULT_OPENROUTER_FALLBACK_MODELS = [
+  "deepseek/deepseek-v4-flash-0731",
+  "openai/gpt-5.6-luna",
+  "deepseek/deepseek-v4-pro",
+] as const;
+
+function configuredOpenRouterModels(): string[] {
+  const configured = process.env.OPENROUTER_MODELS
+    ?.split(",")
+    .map((model) => model.trim())
+    .filter(Boolean);
+
+  if (configured?.length) return [...new Set(configured)];
+
+  const legacyModel = process.env.OPENROUTER_MODEL?.trim();
+  if (legacyModel) {
+    return [
+      legacyModel,
+      ...DEFAULT_OPENROUTER_FALLBACK_MODELS.filter((model) => model !== legacyModel),
+    ];
+  }
+
+  return [...DEFAULT_OPENROUTER_FALLBACK_MODELS];
+}
+
+export const OPENROUTER_FALLBACK_MODELS = configuredOpenRouterModels();
+export const OPENROUTER_FALLBACK_MODEL = OPENROUTER_FALLBACK_MODELS[0];
 
 export type TextCompletion = {
   text: string;
@@ -57,6 +82,7 @@ export function modelDisplayName(model: string, provider?: string): string {
 
   if (normalized.includes("deepseek-v4-pro")) name = "DeepSeek V4 Pro";
   else if (normalized.includes("deepseek-v4-flash")) name = "DeepSeek V4 Flash";
+  else if (normalized.includes("gpt-5.6-luna")) name = "GPT-5.6 Luna";
   else if (normalized.includes("claude-haiku-4-5")) name = "Claude Haiku 4.5";
   else if (normalized.includes("claude-sonnet-5")) name = "Claude Sonnet 5";
   else if (normalized.includes("claude-opus-5")) name = "Claude Opus 5";
@@ -85,74 +111,99 @@ export async function createOpenRouterCompletion(opts: {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("Fallback OpenRouter não configurado (OPENROUTER_API_KEY ausente)");
 
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": process.env.NEXT_PUBLIC_BASE_URL || "https://blog.patinepstore.com.br",
-        "X-OpenRouter-Title": "Blog Patinep Store",
-      },
-      body: JSON.stringify({
-        model: OPENROUTER_FALLBACK_MODEL,
-        messages: [{ role: "user", content: opts.prompt }],
-        max_tokens: opts.maxTokens,
-        response_format: { type: "json_object" },
-        reasoning: { effort: "low", exclude: true },
-        provider: { require_parameters: true },
-        ...(opts.webSearch
-          ? {
-              tools: [
-                {
-                  type: "openrouter:web_search",
-                  parameters: {
-                    engine: "exa",
-                    max_results: 8,
-                    max_total_results: 8,
-                    search_context_size: "medium",
-                  },
-                },
-              ],
-            }
-          : {}),
-      }),
-      signal: AbortSignal.timeout(180_000),
-    });
+  const failures: string[] = [];
 
-    const body = (await response.json().catch(() => ({}))) as OpenRouterResponse;
-    if (!response.ok || body.error) {
-      if (response.status === 402 || body.error?.code === 402) {
-        throw new OpenRouterCreditsError();
+  for (const requestedModel of OPENROUTER_FALLBACK_MODELS) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": process.env.NEXT_PUBLIC_BASE_URL || "https://blog.patinepstore.com.br",
+            "X-OpenRouter-Title": "Blog Patinep Store",
+          },
+          body: JSON.stringify({
+            model: requestedModel,
+            messages: [{ role: "user", content: opts.prompt }],
+            max_tokens: opts.maxTokens,
+            response_format: { type: "json_object" },
+            reasoning: { effort: "low", exclude: true },
+            provider: { require_parameters: true },
+            ...(opts.webSearch
+              ? {
+                  tools: [
+                    {
+                      type: "openrouter:web_search",
+                      parameters: {
+                        engine: "exa",
+                        max_results: 8,
+                        max_total_results: 8,
+                        search_context_size: "medium",
+                      },
+                    },
+                  ],
+                }
+              : {}),
+          }),
+          signal: AbortSignal.timeout(180_000),
+        });
+
+        const body = (await response.json().catch(() => ({}))) as OpenRouterResponse;
+        if (!response.ok || body.error) {
+          if (response.status === 402 || body.error?.code === 402) {
+            throw new OpenRouterCreditsError();
+          }
+
+          const detail = body.error?.message || `HTTP ${response.status}`;
+          failures.push(`${modelDisplayName(requestedModel)}: ${detail}`);
+          break;
+        }
+
+        const choice = body.choices?.[0];
+        const finishReason = choice?.finish_reason || null;
+        if (["length", "max_tokens", "content_filter"].includes(finishReason || "")) {
+          failures.push(
+            `${modelDisplayName(requestedModel)}: conclusão interrompida (${finishReason})`
+          );
+          break;
+        }
+
+        const text = extractOpenRouterText(choice?.message?.content);
+        if (!text) {
+          if (attempt < 2) {
+            console.warn(`[llm] ${requestedModel} retornou resposta vazia; repetindo uma vez`);
+            continue;
+          }
+          failures.push(`${modelDisplayName(requestedModel)}: resposta vazia após 2 tentativas`);
+          break;
+        }
+
+        const model = body.model || requestedModel;
+        return {
+          text,
+          model,
+          modelLabel: modelDisplayName(model, "openrouter"),
+          provider: "openrouter",
+          finishReason,
+        };
+      } catch (error) {
+        if (error instanceof OpenRouterCreditsError) throw error;
+
+        const detail = error instanceof Error ? error.message : String(error);
+        failures.push(`${modelDisplayName(requestedModel)}: ${detail}`);
+        break;
       }
-      const detail = body.error?.message || `HTTP ${response.status}`;
-      throw new Error(`OpenRouter falhou: ${detail}`);
     }
 
-    const choice = body.choices?.[0];
-    const text = extractOpenRouterText(choice?.message?.content);
-    if (!text) {
-      if (attempt < 2) {
-        console.warn("[llm] OpenRouter retornou resposta vazia; repetindo uma vez");
-        continue;
-      }
-      throw new Error("OpenRouter retornou uma resposta sem texto após 2 tentativas");
-    }
-
-    const model = body.model || OPENROUTER_FALLBACK_MODEL;
-    return {
-      text,
-      model,
-      modelLabel: modelDisplayName(model, "openrouter"),
-      provider: "openrouter",
-      finishReason: choice?.finish_reason || null,
-    };
+    console.warn(`[llm] usando o próximo fallback após falha de ${requestedModel}`);
   }
 
-  throw new Error("OpenRouter não concluiu a geração");
+  throw new Error(`OpenRouter não concluiu a geração: ${failures.join(" | ")}`);
 }
 
-/** Tenta a Anthropic primeiro e usa o DeepSeek via OpenRouter se ela falhar. */
+/** Tenta a Anthropic primeiro e percorre a cadeia OpenRouter se ela falhar. */
 export async function createTextCompletion(
   anthropic: Anthropic,
   opts: { prompt: string; maxTokens: number; anthropicModel: string }
@@ -177,7 +228,9 @@ export async function createTextCompletion(
   } catch (err) {
     if (!isOpenRouterConfigured()) throw normalizeAnthropicError(err);
     const detail = normalizeAnthropicError(err).message;
-    console.warn(`[llm] Anthropic falhou (${detail}); usando ${OPENROUTER_FALLBACK_MODEL}`);
+    console.warn(
+      `[llm] Anthropic falhou (${detail}); usando cadeia ${OPENROUTER_FALLBACK_MODELS.join(" -> ")}`
+    );
     return createOpenRouterCompletion({ prompt: opts.prompt, maxTokens: opts.maxTokens });
   }
 }
