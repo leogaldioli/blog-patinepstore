@@ -55,6 +55,12 @@ export type TextCompletion = {
   finishReason: string | null;
 };
 
+type CompletionOptions = {
+  prompt: string;
+  maxTokens: number;
+  validateText?: (text: string) => string | null;
+};
+
 type OpenRouterResponse = {
   model?: string;
   choices?: {
@@ -104,8 +110,9 @@ function extractOpenRouterText(
 }
 
 export async function createOpenRouterCompletion(opts: {
-  prompt: string;
-  maxTokens: number;
+  prompt: CompletionOptions["prompt"];
+  maxTokens: CompletionOptions["maxTokens"];
+  validateText?: CompletionOptions["validateText"];
   webSearch?: boolean;
 }): Promise<TextCompletion> {
   const apiKey = process.env.OPENROUTER_API_KEY;
@@ -180,6 +187,12 @@ export async function createOpenRouterCompletion(opts: {
           break;
         }
 
+        const validationError = opts.validateText?.(text);
+        if (validationError) {
+          failures.push(`${modelDisplayName(requestedModel)}: ${validationError}`);
+          break;
+        }
+
         const model = body.model || requestedModel;
         return {
           text,
@@ -206,7 +219,7 @@ export async function createOpenRouterCompletion(opts: {
 /** Tenta a Anthropic primeiro e percorre a cadeia OpenRouter se ela falhar. */
 export async function createTextCompletion(
   anthropic: Anthropic,
-  opts: { prompt: string; maxTokens: number; anthropicModel: string }
+  opts: CompletionOptions & { anthropicModel: string }
 ): Promise<TextCompletion> {
   try {
     const message = await anthropic.messages.create({
@@ -217,6 +230,10 @@ export async function createTextCompletion(
     const block = message.content.find((item) => item.type === "text");
     if (message.stop_reason === "refusal" || !block || !("text" in block)) {
       throw new Error(`Anthropic retornou resposta sem texto (stop_reason=${message.stop_reason})`);
+    }
+    const validationError = opts.validateText?.(block.text);
+    if (validationError) {
+      throw new Error(`Anthropic retornou conteúdo inválido: ${validationError}`);
     }
     return {
       text: block.text,
@@ -231,6 +248,10 @@ export async function createTextCompletion(
     console.warn(
       `[llm] Anthropic falhou (${detail}); usando cadeia ${OPENROUTER_FALLBACK_MODELS.join(" -> ")}`
     );
-    return createOpenRouterCompletion({ prompt: opts.prompt, maxTokens: opts.maxTokens });
+    return createOpenRouterCompletion({
+      prompt: opts.prompt,
+      maxTokens: opts.maxTokens,
+      validateText: opts.validateText,
+    });
   }
 }

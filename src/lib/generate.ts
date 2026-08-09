@@ -369,6 +369,68 @@ export function parseGeneratedJson(rawText: string): any {
   }
 }
 
+export function generatedPostValidationError(rawText: string): string | null {
+  let parsed: Partial<GeneratedPost>;
+  try {
+    parsed = parseGeneratedJson(rawText) as Partial<GeneratedPost>;
+  } catch {
+    return "JSON inválido ou incompleto";
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return "a resposta não é um objeto JSON";
+  }
+
+  const requiredStrings: (keyof GeneratedPost)[] = [
+    "title",
+    "meta_description",
+    "content_html",
+    "cta_html",
+  ];
+  const invalidFields = requiredStrings.filter(
+    (field) => typeof parsed[field] !== "string" || !(parsed[field] as string).trim()
+  );
+  if (invalidFields.length) {
+    return `campos obrigatórios ausentes ou inválidos: ${invalidFields.join(", ")}`;
+  }
+
+  if (
+    !Array.isArray(parsed.faq) ||
+    parsed.faq.length < 3 ||
+    parsed.faq.length > 5 ||
+    parsed.faq.some(
+      (item) =>
+        !item ||
+        typeof item.question !== "string" ||
+        !item.question.trim() ||
+        typeof item.answer !== "string" ||
+        !item.answer.trim()
+    )
+  ) {
+    return "faq inválido: esperadas de 3 a 5 perguntas e respostas preenchidas";
+  }
+
+  if (
+    typeof parsed.reading_time_min !== "number" ||
+    !Number.isFinite(parsed.reading_time_min) ||
+    parsed.reading_time_min <= 0
+  ) {
+    return "reading_time_min ausente ou inválido";
+  }
+
+  if (parsed.lp_link !== null && typeof parsed.lp_link !== "string") {
+    return "lp_link ausente ou inválido";
+  }
+
+  return null;
+}
+
+function parseValidatedGeneratedPost(rawText: string): GeneratedPost {
+  const validationError = generatedPostValidationError(rawText);
+  if (validationError) throw new Error(`Resposta de post inválida: ${validationError}`);
+  return parseGeneratedJson(rawText) as GeneratedPost;
+}
+
 export async function generatePost(
   topic: BlogTopic
 ): Promise<{
@@ -394,19 +456,13 @@ export async function generatePost(
       anthropicModel: "claude-haiku-4-5-20251001",
       maxTokens: 8192,
       prompt: buildPrompt(topic),
+      validateText: generatedPostValidationError,
     });
     if (["max_tokens", "length"].includes(completion.finishReason || "")) {
       throw new Error("Resposta truncada (max_tokens) — post longo demais");
     }
 
-    const rawText = completion.text;
-    let generated: GeneratedPost;
-    try {
-      generated = parseGeneratedJson(rawText);
-    } catch {
-      console.error("[generate] JSON inválido PT:", rawText.slice(0, 200));
-      throw new Error(`JSON inválido: ${rawText.slice(0, 200)}`);
-    }
+    const generated = parseValidatedGeneratedPost(completion.text);
 
     const finalSlug = await uniqueSlug(slugify(generated.title));
 
@@ -509,13 +565,13 @@ async function generateEnglishVersion(opts: {
     // deixe folga para o HTML traduzido completo.
     maxTokens: 12000,
     prompt,
+    validateText: generatedPostValidationError,
   });
   if (["max_tokens", "length"].includes(completion.finishReason || "")) {
     throw new Error("Tradução truncada (max_tokens)");
   }
 
-  const rawText = completion.text;
-  const generated = parseGeneratedJson(rawText);
+  const generated = parseValidatedGeneratedPost(completion.text);
 
   const enSlug = await uniqueSlug(slugify(generated.title));
 
