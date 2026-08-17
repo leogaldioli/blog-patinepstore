@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { BlogPost, CATEGORY_LABELS, CATEGORY_LABELS_EN } from "@/lib/blog-shared";
+import { formatPostDate } from "@/lib/format-date";
 
 type Props = {
   post: BlogPost;
@@ -10,12 +11,7 @@ type Props = {
 export default function PostCard({ post, lang = "pt" }: Props) {
   const labels = lang === "en" ? CATEGORY_LABELS_EN : CATEGORY_LABELS;
   const categoryLabel = labels[post.category] || post.category;
-  const locale = lang === "en" ? "en-US" : "pt-BR";
-  const date = new Date(post.published_at).toLocaleDateString(locale, {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  const date = formatPostDate(post.published_at, lang, "short");
   const readLabel = lang === "en" ? "min read" : "min de leitura";
   const href = lang === "en" ? `/en/${post.slug}` : `/${post.slug}`;
 

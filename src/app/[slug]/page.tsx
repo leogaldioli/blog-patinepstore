@@ -12,6 +12,7 @@ import {
   extractTldr,
   addUtmToCtaHtml,
 } from "@/lib/seo";
+import { formatPostDate } from "@/lib/format-date";
 import CtaTracker from "@/components/CtaTracker";
 
 export const revalidate = 3600;
@@ -96,11 +97,7 @@ export default async function PostPage({ params }: Props) {
   const related = await getRelatedPosts(post.category, slug);
 
   const categoryLabel = CATEGORY_LABELS[post.category] || post.category;
-  const date = new Date(post.published_at).toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
+  const date = formatPostDate(post.published_at, "pt", "long");
 
   const tldr = extractTldr(post.content_html);
   const cleanedContent = stripLeadingH1(post.content_html);
