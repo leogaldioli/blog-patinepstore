@@ -99,7 +99,7 @@ export default function Footer() {
               textAlign: "center",
             }}
           >
-            © {new Date().getFullYear()} Patinep Store — Maringá, PR. Todos os
+            © {new Date().getUTCFullYear()} Patinep Store — Maringá, PR. Todos os
             direitos reservados.
           </p>
         </div>

@@ -1,4 +1,5 @@
 import posthog from "posthog-js";
+import { isKnownThirdPartyException } from "@/lib/posthog-exception-filter";
 
 const token = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
 
@@ -29,6 +30,7 @@ if (token) {
     },
     before_send(event) {
       if (!event) return null;
+      if (isKnownThirdPartyException(event.event, event.properties)) return null;
       for (const key of ["$current_url", "$referrer", "$pathname"]) {
         if (key in event.properties) event.properties[key] = publicUrl(event.properties[key]);
       }
