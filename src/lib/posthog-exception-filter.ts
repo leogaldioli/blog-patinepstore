@@ -29,6 +29,9 @@ export function isKnownThirdPartyException(
     /(?:\/|\.)gtm\.js/i.test(text);
   const isCmpConsentError = /Cannot read properties of undefined \(reading ["']consents["']\)/i.test(text) &&
     /tcfv2\/cmp2\.js/i.test(text);
+  // A GTM ad tag (pubadsReadyListener) calls googletag without loading Google Ad Manager.
+  const isGtmGoogletagError = /googletag is not defined/i.test(text) &&
+    /(?:(?:\/|\.)gtm\.js|pubadsReadyListener)/i.test(text);
 
-  return isOpaqueCrossOriginError || isGtmJsonError || isCmpConsentError;
+  return isOpaqueCrossOriginError || isGtmJsonError || isCmpConsentError || isGtmGoogletagError;
 }
